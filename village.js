@@ -20,6 +20,28 @@ const BUILDING_DEFS = [
 
 function getBuildingDef(key) { return BUILDING_DEFS.find(b => b.key === key); }
 
+// --- 村の見返り：建てたものが、遊びを少し助けてくれる ---
+// perk: その建物1つあたりの効果。効果の種類は villageBonuses で合計する
+const BUILDING_PERKS = {
+  trees:   { text: '2本ごとに 正解のコイン +1', coin: 0.5 },
+  flowers: { text: '1つごとに 正解のXP +1',     xp: 1 },
+  houses:  { text: '1軒ごとに ボスへのダメージ +1', bossDmg: 1 },
+  plaza:   { text: 'せいげんじかん +3びょう',     time: 3 },
+  school:  { text: 'せいげんじかん +5びょう',     time: 5 },
+  castle:  { text: '正解のXP +5',                xp: 5 },
+};
+
+// 村全体の効果の合計（コインは小数を切り捨て）
+function villageBonuses(village) {
+  const total = { coin: 0, xp: 0, bossDmg: 0, time: 0 };
+  Object.entries(BUILDING_PERKS).forEach(([key, perk]) => {
+    const n = village[key] || 0;
+    Object.keys(total).forEach(k => { if (perk[k]) total[k] += perk[k] * n; });
+  });
+  total.coin = Math.floor(total.coin);
+  return total;
+}
+
 // --- 村データ ---
 function emptyVillage() {
   return Object.fromEntries(BUILDING_DEFS.map(b => [b.key, 0]));

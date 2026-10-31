@@ -219,7 +219,7 @@ function renderKeyboard(){
   };
   guide.innerHTML=`<p class="keyboard-title">キーボードを見ながら うってみよう</p><div class="keyboard-rows">${rows}</div><p class="finger-tip">${next?`つぎの「<kbd>${next}</kbd>」を、赤い●がついた指でうつよ`:'ことばをうちおわったよ！'}</p><div class="finger-guide"><p class="finger-guide-title">赤い●がついた指でキーをうつよ</p><div class="hand-guide"><div class="hand-unit">${handImage('left')}<span>左手</span></div><div class="hand-unit">${handImage('right')}<span>右手</span></div></div></div><div class="keyboard-bottom"><span class="space-key">スペースキー</span><span class="finger-guide-title">親指でうつよ</span></div>`;
 }
-function timerLimit(){return state.level<3?0:Math.max(12,32-(state.level-3)*2);}
+function timerLimit(){return state.level<3?0:Math.max(12,32-(state.level-3)*2)+villageBonuses(state.village).time;}
 function stopTimer(){clearInterval(timer);timer=null;}
 function startTimer(){
   stopTimer();const limit=timerLimit();
@@ -269,7 +269,7 @@ function nextWord(){
 }
 // 正解時のXP加算。レベルアップしたら true を返す
 function gainXp(){
-  const before=state.level;state.xp+=XP_PER_CORRECT;state.level=levelFromXp(state.xp);
+  const before=state.level;state.xp+=XP_PER_CORRECT+villageBonuses(state.village).xp;state.level=levelFromXp(state.xp);
   if(state.level>before){showLevelUp(state.level);return true;}
   return false;
 }
@@ -361,7 +361,7 @@ let lastBuiltKey=null; // 直前に建てた建物（出現アニメーション
 
 // 正解時のコイン獲得。連続ミスなしボーナスとレベルアップボーナスを加える
 function rewardCoins(leveled){
-  let gain=COIN_PER_CORRECT;const notes=[];
+  let gain=COIN_PER_CORRECT+villageBonuses(state.village).coin;const notes=[];
   if(state.noMiss>0&&state.noMiss%COIN_COMBO_EVERY===0){gain+=COIN_COMBO_BONUS;notes.push(`${state.noMiss}れんぞく +${COIN_COMBO_BONUS}`);}
   if(leveled){gain+=COIN_LEVELUP_BONUS;notes.push(`レベルアップ +${COIN_LEVELUP_BONUS}`);}
   state.coins+=gain;
@@ -391,7 +391,7 @@ function renderVillageShop(){
   el('village-shop').innerHTML=BUILDING_DEFS.map(def=>{
     const count=state.village[def.key],maxed=count>=def.max,short=def.price-state.coins;
     const note=maxed?'これいじょう ふやせないよ':short>0?`🪙 ${def.price}　あと ${short}コイン`:`🪙 ${def.price}`;
-    return `<li class="shop-item"><span class="shop-icon" aria-hidden="true">${def.icon}</span><div><strong>${def.name} ×${count} / ${def.max}</strong><p>${note}</p></div><button type="button" class="shop-button" data-key="${def.key}"${maxed||short>0?' disabled':''}>${maxed?'ぜんぶ たてたよ':def.action}</button></li>`;
+    return `<li class="shop-item"><span class="shop-icon" aria-hidden="true">${def.icon}</span><div><strong>${def.name} ×${count} / ${def.max}</strong><p>${note}</p><p class="shop-perk">✨ ${BUILDING_PERKS[def.key].text}</p></div><button type="button" class="shop-button" data-key="${def.key}"${maxed||short>0?' disabled':''}>${maxed?'ぜんぶ たてたよ':def.action}</button></li>`;
   }).join('');
 }
 // 住民とランダムコメント（クリックで言葉が変わる）
@@ -465,7 +465,7 @@ el('boss-input').addEventListener('input',event=>{
 el('boss-input').addEventListener('keydown',event=>{if(event.key.length===1&&!event.ctrlKey&&!event.metaKey&&!event.altKey)playSound('key');});
 // 正解：文字数に応じたダメージ。通常の正解と同じXP・コインも入る
 function attackBoss(){
-  const boss=getBoss(state.bossFight.id),dmg=bossDamage(bossWord.kana);
+  const boss=getBoss(state.bossFight.id),dmg=bossDamage(bossWord.kana)+villageBonuses(state.village).bossDmg;
   el('boss-input').disabled=true;
   state.bossFight.hp=Math.max(0,state.bossFight.hp-dmg);
   state.wordsTyped++;state.correct++;

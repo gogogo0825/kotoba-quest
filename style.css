@@ -132,4 +132,5 @@
 .map-item button{min-height:44px;border-radius:12px;border:2px solid #cdbf9f;background:#fff7d6;font:inherit;font-weight:800;cursor:pointer}
 .map-item button.fight{background:#ffd6d6;border-color:#e08080}
 .area-popup-note{display:block}
+.shop-perk{color:#2f7a3a;font-weight:700;font-size:.9em}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
