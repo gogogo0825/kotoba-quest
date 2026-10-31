@@ -37,6 +37,8 @@ const creatures=[
 ];
 // ===== レベル設定 =====
 const XP_PER_CORRECT=10; // 正解1回で得るXP
+const SPECIAL_MAX=5; // ひっさつわざがたまるまでの「ミスなしことば」の数
+const SPECIAL_BOSS_DAMAGE=30; // ボス戦のひっさつわざのダメージ
 const LEVEL_XP_TABLE=[0,100,250,500,800,1200]; // 添字+1がレベル。値はそのレベルに必要な総XP
 const XP_STEP_AFTER_TABLE=500; // 表の後は1レベルごとに必要XPを+500
 
@@ -59,7 +61,7 @@ function xpProgress(xp,level){
   return {current,needed,percent:Math.floor(current/needed*100)};
 }
 const storageKey='kotoba-quest-save-v1';
-const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,badges:[],combo:0,noMiss:0,dailyStreak:0,lastPlayDate:'',coins:0,bossesDefeated:[],bossFight:null,dailyDate:'',dailyCount:0,dailyDone:false,stampDays:0,wordStats:{},areaId:'forest',areaProgress:{}};
+const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,badges:[],combo:0,noMiss:0,dailyStreak:0,lastPlayDate:'',coins:0,bossesDefeated:[],bossFight:null,dailyDate:'',dailyCount:0,dailyDone:false,stampDays:0,wordStats:{},areaId:'forest',areaProgress:{},special:0};
 // 配列を共有しない新しいセーブデータ。keep に渡した項目は引き継ぐ
 function newState(keep={}){
   const s={...initial,recruited:[],badges:[],bossesDefeated:[],wordStats:{},village:emptyVillage(),...keep};
@@ -110,7 +112,7 @@ function load(){
     const knownIds=BADGE_DEFS.map(b=>b.id);
     const badges=[...new Set(Array.isArray(saved.badges)?saved.badges:[])].filter(id=>knownIds.includes(id));
     const bossesDefeated=[...new Set(Array.isArray(saved.bossesDefeated)?saved.bossesDefeated:[])].filter(id=>getBoss(id));
-    return {...initial,...saved,bossesDefeated,bossFight:normalizeBossFight(saved.bossFight,bossesDefeated),level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:undefined,gameOver:undefined,badges,combo:count(saved.combo),noMiss:count(saved.noMiss),dailyStreak:count(saved.dailyStreak),lastPlayDate:typeof saved.lastPlayDate==='string'?saved.lastPlayDate:'',dailyDate:typeof saved.dailyDate==='string'?saved.dailyDate:'',dailyCount:count(saved.dailyCount),dailyDone:saved.dailyDone===true,stampDays:count(saved.stampDays),wordStats:normalizeWordStats(saved.wordStats,words),coins:count(saved.coins),village:normalizeVillage(saved.village),...normalizeAreaState(saved.areaId,saved.areaProgress,bossesDefeated)};
+    return {...initial,...saved,bossesDefeated,bossFight:normalizeBossFight(saved.bossFight,bossesDefeated),level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:undefined,gameOver:undefined,badges,combo:count(saved.combo),noMiss:count(saved.noMiss),dailyStreak:count(saved.dailyStreak),lastPlayDate:typeof saved.lastPlayDate==='string'?saved.lastPlayDate:'',dailyDate:typeof saved.dailyDate==='string'?saved.dailyDate:'',dailyCount:count(saved.dailyCount),dailyDone:saved.dailyDone===true,stampDays:count(saved.stampDays),wordStats:normalizeWordStats(saved.wordStats,words),coins:count(saved.coins),special:Math.min(SPECIAL_MAX,count(saved.special)),village:normalizeVillage(saved.village),...normalizeAreaState(saved.areaId,saved.areaProgress,bossesDefeated)};
   }catch{return newState();}
 }
 function save(wordIndex=state.wordIndex){
@@ -257,7 +259,7 @@ function renderCollection(){
 function render(){
   el('level-label').textContent=`レベル ${state.level}`;el('hero-level').textContent=`Lv. ${state.level}`;el('words-typed').textContent=state.wordsTyped;el('correct-count').textContent=state.correct;
   input.disabled=false;
-  renderXp();renderCoins();renderDaily();renderAreaBar();
+  renderXp();renderCoins();renderDaily();renderAreaBar();renderSpecial();
   el('word-number').textContent=state.wordIndex%3+1;el('category-label').textContent=current.category;el('word-kana').textContent=current.kana;el('word-stars').textContent=starText((state.wordStats[current.kana]||{best:0}).best);
   romanHint();renderKeyboard();renderMonster();renderCollection();
   if(state.level>=3&&!timedOut&&el('boss-screen').hidden)startTimer();else{stopTimer();el('timer-pill').hidden=true;}
@@ -452,7 +454,7 @@ function nextBossWord(){
 // HPバーと「残り / 最大」を描画
 function renderBossHp(){
   const info=bossHpInfo(getBoss(state.bossFight.id),state.bossFight.hp);
-  el('boss-hp-bar').style.width=`${info.percent}%`;el('boss-hp-text').textContent=`${info.now} / ${info.max}`;
+  el('boss-hp-bar').style.width=`${info.percent}%`;el('boss-hp-text').textContent=`${info.now} / ${info.max}`;renderSpecial();
 }
 // ミスはダメージなし。HPもコンボも減らさず、違うキーは入力欄に残さない
 el('boss-input').addEventListener('input',event=>{
@@ -469,7 +471,8 @@ function attackBoss(){
   el('boss-input').disabled=true;
   state.bossFight.hp=Math.max(0,state.bossFight.hp-dmg);
   state.wordsTyped++;state.correct++;
-  const leveled=gainXp();recordCorrectWord(bossWord);rewardCoins(leveled);checkBadges();
+  const cleanWord=!wordHadMiss;
+  const leveled=gainXp();recordCorrectWord(bossWord);addSpecial(cleanWord);rewardCoins(leveled);checkBadges();
   const hit=el('boss-hit');hit.textContent=`💥 ${dmg}ダメージ！`;hit.classList.remove('show');void hit.offsetWidth;hit.classList.add('show');
   const art=el('boss-art');art.classList.remove('shake');void art.offsetWidth;art.classList.add('shake');
   playSound('attack');renderBossHp();save();
@@ -499,6 +502,39 @@ el('boss-victory-close').addEventListener('click',closeBossScreen);
 el('boss-later').addEventListener('click',()=>{
   bossLaterThisSession=true;el('boss-screen').hidden=true;render();input.focus();
 });
+// ===== ひっさつわざ =====
+// ミスなしで打てたことばでゲージがたまる（ミスしても減らない）。満タンでボタンから発動
+function addSpecial(clean){if(clean&&state.special<SPECIAL_MAX){state.special++;if(state.special>=SPECIAL_MAX)toast('✨ ひっさつわざが つかえるよ！');}}
+function renderSpecial(){
+  const ready=state.special>=SPECIAL_MAX;
+  el('special-gems').textContent='✨'.repeat(state.special)+'・'.repeat(SPECIAL_MAX-state.special);
+  el('special-button').hidden=!ready;el('boss-special').hidden=!ready;
+}
+// 通常戦闘：いまのモンスターを一撃で倒す
+function useSpecial(){
+  if(state.special<SPECIAL_MAX||state.monsterHp<=0||!el('boss-screen').hidden)return;
+  state.special=0;state.monsterHp=0;stopTimer();
+  playSound('attack');el('enemy-health').style.width='0%';
+  el('battle-effects').textContent='✨ ひっさつわざ！';el('battle-effects').classList.remove('show');void el('battle-effects').offsetWidth;el('battle-effects').classList.add('show');
+  el('battle-message').textContent='ひっさつわざで モンスターを たおした！';
+  el('monster-wrap').classList.add('defeated');save();render();
+  setTimeout(recruit,750);setTimeout(nextWord,1300);
+}
+// ボス戦：大ダメージ（村の家のボーナスも加わる）
+function useBossSpecial(){
+  if(state.special<SPECIAL_MAX||!state.bossFight||!bossWord)return;
+  const boss=getBoss(state.bossFight.id),dmg=SPECIAL_BOSS_DAMAGE+villageBonuses(state.village).bossDmg;
+  state.special=0;el('boss-input').disabled=true;
+  state.bossFight.hp=Math.max(0,state.bossFight.hp-dmg);
+  const hit=el('boss-hit');hit.textContent=`✨💥 ひっさつ！ ${dmg}ダメージ！`;hit.classList.remove('show');void hit.offsetWidth;hit.classList.add('show');
+  const art=el('boss-art');art.classList.remove('shake');void art.offsetWidth;art.classList.add('shake');
+  playSound('attack');renderBossHp();renderSpecial();save();
+  if(state.bossFight.hp<=0)setTimeout(()=>defeatBoss(boss),500);
+  else setTimeout(()=>{el('boss-input').disabled=false;el('boss-input').focus();},450);
+}
+el('special-button').addEventListener('click',useSpecial);
+el('boss-special').addEventListener('click',useBossSpecial);
+
 // ===== ワールドマップ（定義と判定は areas.js） =====
 // 画面上の「いまのエリア」バー：名前・ボスまでのゲージ
 function renderAreaBar(){
@@ -572,7 +608,8 @@ function recruit(){
 function submit(){
   if(!isRomajiComplete(current,input.value))return;stopTimer();state.wordsTyped++;state.correct++;state.monsterHp--;
   playSound('attack');
-  const leveled=gainXp();const bossReady=addAreaProgress(state);recordCorrectWord();rewardCoins(leveled);checkBadges();el('enemy-health').style.width=`${Math.max(0,state.monsterHp/3*100)}%`;
+  const cleanWord=!wordHadMiss;
+  const leveled=gainXp();const bossReady=addAreaProgress(state);addSpecial(cleanWord);recordCorrectWord();rewardCoins(leveled);checkBadges();el('enemy-health').style.width=`${Math.max(0,state.monsterHp/3*100)}%`;
   el('monster-wrap').classList.remove('hit');void el('monster-wrap').offsetWidth;el('monster-wrap').classList.add('hit');
   el('battle-effects').textContent=state.monsterHp<=0?'たおした！':state.level>=3?'まほう こうげき！':'こうげき！';el('battle-effects').classList.remove('show');void el('battle-effects').offsetWidth;el('battle-effects').classList.add('show');
   el('typing-feedback').textContent='せいかい！ こうげき！';el('typing-feedback').classList.remove('error');el('battle-message').textContent=state.monsterHp<=0?'やった！ モンスターを たおした！':'いいね！ モンスターに あたったよ！';
