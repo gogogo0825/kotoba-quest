@@ -258,7 +258,7 @@ function render(){
   el('level-label').textContent=`レベル ${state.level}`;el('hero-level').textContent=`Lv. ${state.level}`;el('words-typed').textContent=state.wordsTyped;el('correct-count').textContent=state.correct;
   input.disabled=false;
   renderXp();renderCoins();renderDaily();renderAreaBar();
-  el('word-number').textContent=state.wordIndex%3+1;el('category-label').textContent=current.category;el('word-kana').textContent=current.kana;el('word-emoji').textContent=wordEmoji(current.kana);el('word-stars').textContent=starText((state.wordStats[current.kana]||{best:0}).best);
+  el('word-number').textContent=state.wordIndex%3+1;el('category-label').textContent=current.category;el('word-kana').textContent=current.kana;el('word-emoji').textContent=wordEmoji(current.kana);
   romanHint();renderKeyboard();renderMonster();renderCollection();
   if(state.level>=3&&!timedOut&&el('boss-screen').hidden)startTimer();else{stopTimer();el('timer-pill').hidden=true;}
 }
@@ -297,8 +297,7 @@ function recordKey(){state.combo++;checkBadges();}
 function recordMiss(){state.combo=0;state.noMiss=0;wordHadMiss=true;}
 // ことばを正解：ミスなし連続と連続プレイ日数を更新
 function recordCorrectWord(word=current){
-  const result=recordWordResult(state.wordStats,word.kana,wordHadMiss);
-  if(result.after>result.before)toast(`⭐ 「${word.kana}」が ${starText(result.after)} になったよ！`);
+  recordWordResult(state.wordStats,word.kana,wordHadMiss);
   if(!wordHadMiss)state.noMiss++;
   wordHadMiss=false;
   const today=todayKey();
@@ -540,14 +539,14 @@ function renderBossDex(){
   }).join('');
 }
 function openBossDex(){renderBossDex();renderWordDex();showDexTab('word');el('boss-dex-dialog').hidden=false;el('boss-dex-close').focus();}
-// ことばずかん：集めたことばと★を、しゅるいごとに表示
+// ことばずかん：集めたことばを、しゅるいごとに表示
 function renderWordDex(){
   const seen=words.filter(w=>state.wordStats[w.kana]).length;
-  el('word-dex-summary').textContent=`あつめたことば ${seen} / ${words.length}　★3: ${masteredCount(state.wordStats)}こ`;
+  el('word-dex-summary').textContent=`あつめたことば ${seen} / ${words.length}`;
   const categories=[...new Set(words.map(w=>w.category))];
   el('word-dex-list').innerHTML=categories.map(cat=>`<h3 class="word-dex-cat">${cat}</h3><div class="word-chips">${words.filter(w=>w.category===cat).map(w=>{
     const stat=state.wordStats[w.kana];
-    return stat?`<span class="word-chip s${stat.best}">${wordEmoji(w.kana)} ${w.kana}<b>${starText(stat.best)}</b></span>`:'<span class="word-chip locked">？？？</span>';
+    return stat?`<span class="word-chip">${wordEmoji(w.kana)} ${w.kana}</span>`:'<span class="word-chip locked">？？？</span>';
   }).join('')}</div>`).join('');
 }
 function showDexTab(name){
