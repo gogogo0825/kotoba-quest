@@ -55,9 +55,9 @@ function xpProgress(xp,level){
   return {current,needed,percent:Math.floor(current/needed*100)};
 }
 const storageKey='kotoba-quest-save-v1';
-const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,heroHp:3,gameOver:false,badges:[],combo:0,noMiss:0,dailyStreak:0,lastPlayDate:''};
+const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,heroHp:3,gameOver:false,badges:[],combo:0,noMiss:0,dailyStreak:0,lastPlayDate:'',coins:0};
 // 配列を共有しない新しいセーブデータ。keep に渡した項目は引き継ぐ
-function newState(keep={}){return {...initial,recruited:[],badges:[],...keep};}
+function newState(keep={}){return {...initial,recruited:[],badges:[],village:emptyVillage(),...keep};}
 const maxHeroHp=3;
 const el=(id)=>document.getElementById(id);
 const input=el('typing-input');
@@ -102,7 +102,7 @@ function load(){
     // 未知のバッジIDや重複は取り除く
     const knownIds=BADGE_DEFS.map(b=>b.id);
     const badges=[...new Set(Array.isArray(saved.badges)?saved.badges:[])].filter(id=>knownIds.includes(id));
-    return {...initial,...saved,level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:Number.isFinite(savedHeroHp)?Math.max(0,Math.min(maxHeroHp,savedHeroHp)):maxHeroHp,gameOver:saved.gameOver===true,badges,combo:count(saved.combo),noMiss:count(saved.noMiss),dailyStreak:count(saved.dailyStreak),lastPlayDate:typeof saved.lastPlayDate==='string'?saved.lastPlayDate:''};
+    return {...initial,...saved,level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:Number.isFinite(savedHeroHp)?Math.max(0,Math.min(maxHeroHp,savedHeroHp)):maxHeroHp,gameOver:saved.gameOver===true,badges,combo:count(saved.combo),noMiss:count(saved.noMiss),dailyStreak:count(saved.dailyStreak),lastPlayDate:typeof saved.lastPlayDate==='string'?saved.lastPlayDate:'',coins:count(saved.coins),village:normalizeVillage(saved.village)};
   }catch{return newState();}
 }
 function save(wordIndex=state.wordIndex){
@@ -266,7 +266,7 @@ function render(){
   el('level-label').textContent=`レベル ${state.level}`;el('hero-level').textContent=`Lv. ${state.level}`;el('words-typed').textContent=state.wordsTyped;el('correct-count').textContent=state.correct;
   el('hero-health').style.width=`${state.heroHp/maxHeroHp*100}%`;el('hero-hp-label').textContent=`${state.heroHp} / ${maxHeroHp}`;
   input.disabled=state.gameOver;el('game-over').hidden=!state.gameOver;
-  renderXp();
+  renderXp();renderCoins();
   el('word-number').textContent=state.wordIndex%3+1;el('category-label').textContent=current.category;el('word-kana').textContent=current.kana;
   romanHint();renderKeyboard();renderMonster();renderCollection();
   if(state.level>=3&&!timedOut&&!state.gameOver)startTimer();else{stopTimer();el('timer-pill').hidden=true;}
@@ -348,6 +348,77 @@ el('badge-close').addEventListener('click',closeBadges);
 el('badge-dialog').addEventListener('click',event=>{if(event.target===el('badge-dialog'))closeBadges();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!el('badge-dialog').hidden)closeBadges();});
 
+// ===== ことばのむら（定義と計算は village.js） =====
+const VILLAGE_SCENE_ORDER=['castle','school','plaza','houses','flowers','trees']; // 奥から手前へ
+let lastBuiltKey=null; // 直前に建てた建物（出現アニメーション用）
+
+// 正解時のコイン獲得。連続ミスなしボーナスとレベルアップボーナスを加える
+function rewardCoins(leveled){
+  let gain=COIN_PER_CORRECT;const notes=[];
+  if(state.noMiss>0&&state.noMiss%COIN_COMBO_EVERY===0){gain+=COIN_COMBO_BONUS;notes.push(`${state.noMiss}れんぞく +${COIN_COMBO_BONUS}`);}
+  if(leveled){gain+=COIN_LEVELUP_BONUS;notes.push(`レベルアップ +${COIN_LEVELUP_BONUS}`);}
+  state.coins+=gain;
+  if(notes.length)toast(`🪙 ボーナス！ ${notes.join(' ／ ')}`);
+}
+function renderCoins(){
+  el('village-button').textContent=`🏡 むら 🪙${state.coins}`;
+  el('village-coins').textContent=state.coins;
+}
+function renderVillage(){
+  const rank=getVillageRank(state.village);
+  el('village-rank').textContent=rank.rank;
+  el('village-rank-name').textContent=rank.name;
+  el('village-rank-next').textContent=rank.next?`つぎの「${rank.next.name}」まで あと ${rank.next.min-rank.score}ポイント`:'いちばん おおきな むらに なったよ！';
+  renderCoins();renderVillageScene();renderVillageShop();renderResidents();
+}
+// 建てたものを絵文字で並べる
+function renderVillageScene(){
+  const pieces=VILLAGE_SCENE_ORDER.map(key=>{
+    const def=getBuildingDef(key),count=state.village[key];
+    return Array.from({length:count},(_,i)=>`<span class="village-piece${key===lastBuiltKey&&i===count-1?' pop':''}" title="${def.name}">${def.icon}</span>`).join('');
+  }).join('');
+  el('village-scene').innerHTML=pieces||'<span class="village-empty">まだ なにもないよ。コインで たてものを つくろう！</span>';
+}
+// 建設ボタン一覧（足りない・上限のときは押せない）
+function renderVillageShop(){
+  el('village-shop').innerHTML=BUILDING_DEFS.map(def=>{
+    const count=state.village[def.key],maxed=count>=def.max,short=def.price-state.coins;
+    const note=maxed?'これいじょう ふやせないよ':short>0?`🪙 ${def.price}　あと ${short}コイン`:`🪙 ${def.price}`;
+    return `<li class="shop-item"><span class="shop-icon" aria-hidden="true">${def.icon}</span><div><strong>${def.name} ×${count} / ${def.max}</strong><p>${note}</p></div><button type="button" class="shop-button" data-key="${def.key}"${maxed||short>0?' disabled':''}>${maxed?'ぜんぶ たてたよ':def.action}</button></li>`;
+  }).join('');
+}
+// 住民とランダムコメント（クリックで言葉が変わる）
+function renderResidents(){
+  const residents=getResidents(state.village);
+  el('village-residents').innerHTML=residents.length
+    ?residents.map(r=>`<li><button type="button" class="resident-item"><span class="resident-icon" aria-hidden="true">${r.icon}</span><span><span class="resident-name">${r.name}</span><span class="resident-comment">「${pickResidentComment(state.village)}」</span></span></button></li>`).join('')
+    :'<li class="resident-empty">おうちを たてると なかまが きてくれるよ！</li>';
+}
+// 建設：village.js の tryBuild で処理し、保存と演出を行う
+function buildAt(key){
+  const before=getResidents(state.village).length;
+  const result=tryBuild(state,key);
+  if(!result.ok){toast(result.message);return;}
+  const newcomers=getResidents(state.village).slice(before);
+  lastBuiltKey=key;save();renderVillage();lastBuiltKey=null;
+  playSound('recruit');showBuildPopup(result.def,newcomers);
+}
+function showBuildPopup(def,newcomers){
+  el('build-popup-icon').textContent=def.icon;
+  el('build-popup-text').textContent=def.done;
+  el('build-popup-extra').textContent=newcomers.map(r=>`${r.icon} ${r.name}が すみはじめたよ！`).join(' ');
+  const popup=el('build-popup');
+  popup.classList.remove('show');void popup.offsetWidth;popup.classList.add('show');
+}
+function openVillage(){renderVillage();el('village-dialog').hidden=false;el('village-close').focus();}
+function closeVillage(){el('village-dialog').hidden=true;if(!input.disabled)input.focus();}
+el('village-button').addEventListener('click',openVillage);
+el('village-close').addEventListener('click',closeVillage);
+el('village-dialog').addEventListener('click',event=>{if(event.target===el('village-dialog'))closeVillage();});
+el('village-shop').addEventListener('click',event=>{const button=event.target.closest('[data-key]');if(button&&!button.disabled)buildAt(button.dataset.key);});
+el('village-residents').addEventListener('click',event=>{if(event.target.closest('.resident-item'))renderResidents();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!el('village-dialog').hidden)closeVillage();});
+
 function recruit(){
   const c=creatureAt();state.recruited.push({creatureIndex:state.monsterIndex%creatures.length,level:state.level});state.monsterIndex++;state.monsterHp=3;
   playSound('recruit');
@@ -357,7 +428,7 @@ function submit(){
   if(state.gameOver)return;
   if(input.value!==current.romaji)return;stopTimer();state.wordsTyped++;state.correct++;state.monsterHp--;
   playSound('attack');
-  const leveled=gainXp();recordCorrectWord();checkBadges();el('enemy-health').style.width=`${Math.max(0,state.monsterHp/3*100)}%`;
+  const leveled=gainXp();recordCorrectWord();rewardCoins(leveled);checkBadges();el('enemy-health').style.width=`${Math.max(0,state.monsterHp/3*100)}%`;
   el('monster-wrap').classList.remove('hit');void el('monster-wrap').offsetWidth;el('monster-wrap').classList.add('hit');
   el('battle-effects').textContent=state.monsterHp<=0?'たおした！':state.level>=3?'まほう こうげき！':'こうげき！';el('battle-effects').classList.remove('show');void el('battle-effects').offsetWidth;el('battle-effects').classList.add('show');
   el('typing-feedback').textContent='せいかい！ こうげき！';el('typing-feedback').classList.remove('error');el('battle-message').textContent=state.monsterHp<=0?'やった！ モンスターを たおした！':'いいね！ モンスターに あたったよ！';
@@ -400,8 +471,8 @@ el('retry-button').addEventListener('click',()=>{
 });
 el('reset-button').addEventListener('click',()=>{
   if(!confirm('レベルやなかまを さいしょからに もどしますか？'))return;
-  // バッジと連続プレイ日数は、冒険をやり直しても残す
-  stopTimer();state=newState({badges:state.badges,dailyStreak:state.dailyStreak,lastPlayDate:state.lastPlayDate});current=words[0];wordHadMiss=false;input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
+  // バッジ・連続プレイ日数・コイン・村は、冒険をやり直しても残す
+  stopTimer();state=newState({badges:state.badges,dailyStreak:state.dailyStreak,lastPlayDate:state.lastPlayDate,coins:state.coins,village:state.village});current=words[0];wordHadMiss=false;input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
 });
 const helpKey='kotoba-quest-help-seen';
 function openHelp(){el('help-dialog').hidden=false;el('help-close').focus();}
