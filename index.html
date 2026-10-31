@@ -154,7 +154,7 @@
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="ことばクエスト ホーム"><span class="brand-mark">K</span><span>ことばクエスト</span></a>
-      <div class="top-status"><span class="save-state"><span class="save-dot"></span>ぼうけんを保存中</span><button class="icon-button save-button" id="village-button" type="button" title="ことばのむら" aria-label="ことばのむらを見る">🏡 むら</button><button class="icon-button save-button" id="badge-button" type="button" title="バッジをみる" aria-label="バッジコレクションを見る">バッジ</button><button class="icon-button save-button" id="help-button" type="button" title="あそびかた" aria-label="あそびかたを見る">あそびかた</button><button class="icon-button save-button" id="save-button" type="button" title="ぼうけんをセーブ" aria-label="ぼうけんをセーブ">セーブ</button><button class="icon-button sound-button" id="sound-button" type="button" title="効果音をオフ" aria-label="効果音をオフ" aria-pressed="true">♪</button><button class="icon-button" id="reset-button" type="button" title="ぼうけんをリセット" aria-label="ぼうけんをリセット"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5"/></svg></button></div>
+      <div class="top-status"><span class="save-state"><span class="save-dot"></span>ぼうけんを保存中</span><button class="icon-button save-button" id="village-button" type="button" title="ことばのむら" aria-label="ことばのむらを見る">🏡 むら</button><button class="icon-button save-button" id="boss-dex-button" type="button" title="ボスずかん" aria-label="ボスずかんを見る">👹 ボス</button><button class="icon-button save-button" id="badge-button" type="button" title="バッジをみる" aria-label="バッジコレクションを見る">バッジ</button><button class="icon-button save-button" id="help-button" type="button" title="あそびかた" aria-label="あそびかたを見る">あそびかた</button><button class="icon-button save-button" id="save-button" type="button" title="ぼうけんをセーブ" aria-label="ぼうけんをセーブ">セーブ</button><button class="icon-button sound-button" id="sound-button" type="button" title="効果音をオフ" aria-label="効果音をオフ" aria-pressed="true">♪</button><button class="icon-button" id="reset-button" type="button" title="ぼうけんをリセット" aria-label="ぼうけんをリセット"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5"/></svg></button></div>
     </header>
     <main class="layout">
       <section class="game-column" aria-label="タイピングぼうけん">
@@ -248,6 +248,31 @@
         <ul class="badge-grid" id="badge-grid"></ul>
       </div>
     </div>
+    <div id="boss-screen" class="boss-screen" hidden>
+      <div class="boss-card" role="dialog" aria-modal="true" aria-labelledby="boss-name">
+        <div id="boss-art" class="boss-art" aria-hidden="true"></div>
+        <h2 id="boss-name"></h2>
+        <div class="boss-hp"><span>HP</span><div class="boss-hp-track"><i id="boss-hp-bar"></i></div><strong id="boss-hp-text"></strong></div>
+        <div id="boss-hit" class="boss-hit" aria-live="polite"></div>
+        <div class="boss-word"><span class="boss-label">ことば</span><div id="boss-kana"></div><div id="boss-romaji"></div></div>
+        <input id="boss-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ここにローマ字を入力" aria-label="ボスにこうげきすることば">
+        <div class="boss-player">ぼうけんしゃ <span id="boss-player-level"></span></div>
+        <button id="boss-later" class="boss-later" type="button">あとでたたかう</button>
+      </div>
+      <div id="boss-victory" class="boss-victory" hidden>
+        <div class="boss-sparkles" aria-hidden="true">✨ ✨ ✨</div>
+        <strong>🎉 ボス撃破！</strong>
+        <p id="boss-victory-text"></p><p id="boss-victory-reward"></p>
+        <button id="boss-victory-close" class="boss-later" type="button">ぼうけんに もどる</button>
+      </div>
+    </div>
+    <div id="boss-dex-dialog" class="help-overlay" hidden>
+      <div class="help-card" role="dialog" aria-modal="true" aria-labelledby="boss-dex-title">
+        <h2 id="boss-dex-title">👹 ボスずかん</h2>
+        <ul id="boss-dex-list" class="boss-dex-list"></ul>
+        <button id="boss-dex-close" class="boss-later" type="button">とじる</button>
+      </div>
+    </div>
     <div class="build-popup" id="build-popup" role="status" aria-live="polite"><span class="build-popup-icon" id="build-popup-icon">✨</span><div><strong>✨ 建設完了！</strong><span id="build-popup-text"></span><span id="build-popup-extra"></span></div></div>
     <div class="badge-popup" id="badge-popup" role="status" aria-live="polite"><span class="badge-popup-icon" id="badge-popup-icon">🏅</span><div><strong>🏅 バッジゲット！</strong><span id="badge-popup-text"></span></div></div>
     <div class="levelup-banner" id="levelup-banner" role="status" aria-live="polite"><span class="levelup-emoji">🎉</span><strong>レベルアップ！</strong><span id="levelup-text"></span></div>
@@ -255,6 +280,7 @@
   </div>
   <script src="badges.js"></script>
   <script src="village.js"></script>
+  <script src="bosses.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

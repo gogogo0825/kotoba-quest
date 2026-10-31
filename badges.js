@@ -21,6 +21,11 @@ const BADGE_DEFS = [
   { id: 'daily3', icon: '📅', name: '3にちつづいた！', desc: '3にち れんぞくで あそぶ', check: s => s.dailyStreak >= 3 },
   { id: 'daily7', icon: '🗓️', name: 'いっしゅうかんのぼうけん', desc: '7にち れんぞくで あそぶ', check: s => s.dailyStreak >= 7 },
   { id: 'daily30', icon: '🌙', name: 'ひとつきのゆうしゃ', desc: '30にち れんぞくで あそぶ', check: s => s.dailyStreak >= 30 },
+  // s.bossesDefeated : 倒したボスIDの配列
+  { id: 'boss_slimeKing', icon: '🐌', name: 'スライムキングたおした！', desc: 'スライムキングを たおす', check: s => s.bossesDefeated.includes('slimeKing') },
+  { id: 'boss_wolfKing', icon: '🐺', name: 'オオカミだいまおうたおした！', desc: 'オオカミだいまおうを たおす', check: s => s.bossesDefeated.includes('wolfKing') },
+  { id: 'boss_dragon', icon: '🐲', name: 'ドラゴンたおした！', desc: 'ドラゴンを たおす', check: s => s.bossesDefeated.includes('dragon') },
+  { id: 'boss_wordKing', icon: '👑', name: 'ことばのおうたおした！', desc: 'ことばのおうを たおす', check: s => s.bossesDefeated.includes('wordKing') },
 ];
 
 // 端末のローカル日付を 'YYYY-MM-DD' で返す

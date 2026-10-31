@@ -66,4 +66,32 @@
 .build-popup .build-popup-icon{font-size:2.6rem}
 .build-popup.show{animation:build-popup-show 2.4s ease both}
 @keyframes build-popup-show{0%{opacity:0;transform:translate(-50%,16px) scale(.6)}12%{opacity:1;transform:translate(-50%,0) scale(1.12)}22%{transform:translate(-50%,0) scale(1)}85%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:0;transform:translate(-50%,-12px) scale(1)}}
+/* ===== ボス戦 ===== */
+.boss-screen{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:rgba(40,28,64,.88);padding:12px}
+.boss-screen[hidden],.boss-victory[hidden]{display:none}
+.boss-card{width:min(520px,100%);max-height:100%;overflow:auto;background:#fffaf0;border-radius:20px;padding:16px;text-align:center}
+.boss-card h2{margin:4px 0}
+.boss-art{font-size:84px;line-height:1.1}
+.boss-art.shake{animation:bossShake .4s}
+@keyframes bossShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px) rotate(-4deg)}60%{transform:translateX(10px) rotate(4deg)}}
+.boss-hp{display:flex;align-items:center;gap:8px;margin:8px 0}
+.boss-hp-track{flex:1;height:18px;border-radius:9px;background:#e6dccb;overflow:hidden}
+.boss-hp-track i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#e0524e,#f29a4c);transition:width .45s}
+.boss-hit{min-height:1.6em;font-weight:900;color:#d2402b}
+.boss-hit.show{animation:bossHit .8s}
+@keyframes bossHit{0%{opacity:0;transform:scale(.6)}30%{opacity:1;transform:scale(1.3)}100%{opacity:1;transform:scale(1)}}
+.boss-label{font-size:13px;color:#7a6e5d}
+#boss-kana{font-size:clamp(26px,8vw,36px);font-weight:900;overflow-wrap:anywhere}
+#boss-romaji{color:#7a6e5d;margin-bottom:8px}
+#boss-input{width:100%;box-sizing:border-box;font-size:22px;padding:10px;border-radius:12px;border:2px solid #cdbf9f}
+.boss-player{margin:10px 0;font-weight:800}
+.boss-later{padding:8px 16px;border-radius:12px;border:2px solid #cdbf9f;background:#fff;font:inherit;font-weight:800;cursor:pointer}
+.boss-victory{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:8px;text-align:center;background:rgba(40,28,64,.95);color:#fff;font-size:20px;padding:16px;animation:bossWin .7s}
+.boss-victory p{margin:0}.boss-victory strong{font-size:clamp(26px,8vw,34px)}
+.boss-sparkles{font-size:34px;animation:bossSpark 1.2s infinite alternate}
+@keyframes bossWin{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+@keyframes bossSpark{to{transform:scale(1.25) rotate(8deg)}}
+.boss-dex-list{list-style:none;padding:0;margin:12px 0;display:grid;gap:8px}
+.boss-dex-list li{padding:10px;border-radius:12px;background:#f3ead7;font-weight:800}
+.boss-dex-list li.locked{opacity:.6}.boss-dex-list small{font-weight:600;color:#7a6e5d}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}

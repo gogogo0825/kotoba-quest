@@ -55,9 +55,9 @@ function xpProgress(xp,level){
   return {current,needed,percent:Math.floor(current/needed*100)};
 }
 const storageKey='kotoba-quest-save-v1';
-const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,heroHp:3,gameOver:false,badges:[],combo:0,noMiss:0,dailyStreak:0,lastPlayDate:'',coins:0};
+const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,heroHp:3,gameOver:false,badges:[],combo:0,noMiss:0,dailyStreak:0,lastPlayDate:'',coins:0,bossesDefeated:[],bossFight:null};
 // 配列を共有しない新しいセーブデータ。keep に渡した項目は引き継ぐ
-function newState(keep={}){return {...initial,recruited:[],badges:[],village:emptyVillage(),...keep};}
+function newState(keep={}){return {...initial,recruited:[],badges:[],bossesDefeated:[],village:emptyVillage(),...keep};}
 const maxHeroHp=3;
 const el=(id)=>document.getElementById(id);
 const input=el('typing-input');
@@ -102,7 +102,8 @@ function load(){
     // 未知のバッジIDや重複は取り除く
     const knownIds=BADGE_DEFS.map(b=>b.id);
     const badges=[...new Set(Array.isArray(saved.badges)?saved.badges:[])].filter(id=>knownIds.includes(id));
-    return {...initial,...saved,level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:Number.isFinite(savedHeroHp)?Math.max(0,Math.min(maxHeroHp,savedHeroHp)):maxHeroHp,gameOver:saved.gameOver===true,badges,combo:count(saved.combo),noMiss:count(saved.noMiss),dailyStreak:count(saved.dailyStreak),lastPlayDate:typeof saved.lastPlayDate==='string'?saved.lastPlayDate:'',coins:count(saved.coins),village:normalizeVillage(saved.village)};
+    const bossesDefeated=[...new Set(Array.isArray(saved.bossesDefeated)?saved.bossesDefeated:[])].filter(id=>getBoss(id));
+    return {...initial,...saved,bossesDefeated,bossFight:normalizeBossFight(saved.bossFight,bossesDefeated),level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:Number.isFinite(savedHeroHp)?Math.max(0,Math.min(maxHeroHp,savedHeroHp)):maxHeroHp,gameOver:saved.gameOver===true,badges,combo:count(saved.combo),noMiss:count(saved.noMiss),dailyStreak:count(saved.dailyStreak),lastPlayDate:typeof saved.lastPlayDate==='string'?saved.lastPlayDate:'',coins:count(saved.coins),village:normalizeVillage(saved.village)};
   }catch{return newState();}
 }
 function save(wordIndex=state.wordIndex){
@@ -269,7 +270,7 @@ function render(){
   renderXp();renderCoins();
   el('word-number').textContent=state.wordIndex%3+1;el('category-label').textContent=current.category;el('word-kana').textContent=current.kana;
   romanHint();renderKeyboard();renderMonster();renderCollection();
-  if(state.level>=3&&!timedOut&&!state.gameOver)startTimer();else{stopTimer();el('timer-pill').hidden=true;}
+  if(state.level>=3&&!timedOut&&!state.gameOver&&el('boss-screen').hidden)startTimer();else{stopTimer();el('timer-pill').hidden=true;}
 }
 function nextWord(){
   if(state.gameOver)return;
@@ -419,6 +420,95 @@ el('village-shop').addEventListener('click',event=>{const button=event.target.cl
 el('village-residents').addEventListener('click',event=>{if(event.target.closest('.resident-item'))renderResidents();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!el('village-dialog').hidden)closeVillage();});
 
+// ===== ボス戦（定義と計算は bosses.js） =====
+let bossWord=null;
+let bossLaterThisSession=false; // 「あとでたたかう」を選んだら、再読み込みまで出さない
+
+// 挑戦待ちのボスがいれば専用画面を開く（レベルアップ後・読み込み後に呼ぶ）
+function maybeStartBoss(){
+  if(!el('boss-screen').hidden||state.gameOver||bossLaterThisSession)return;
+  const boss=state.bossFight?getBoss(state.bossFight.id):findPendingBoss(state.level,state.bossesDefeated);
+  if(!boss)return;
+  if(!state.bossFight)state.bossFight={id:boss.id,hp:boss.hp};
+  stopTimer();el('timer-pill').hidden=true;save();openBossScreen(boss);
+}
+function openBossScreen(boss){
+  el('boss-art').textContent=boss.icon;el('boss-name').textContent=`${boss.icon} ${boss.name}`;
+  el('boss-player-level').textContent=`Lv.${state.level}`;
+  el('boss-victory').hidden=true;el('boss-hit').textContent='';el('boss-screen').hidden=false;
+  playSound('recruit');nextBossWord();
+}
+function nextBossWord(){
+  bossWord=words[Math.floor(Math.random()*words.length)];
+  el('boss-kana').textContent=bossWord.kana;el('boss-romaji').textContent=bossWord.romaji;
+  el('boss-input').value='';renderBossHp();el('boss-input').focus();
+}
+// HPバーと「残り / 最大」を描画
+function renderBossHp(){
+  const info=bossHpInfo(getBoss(state.bossFight.id),state.bossFight.hp);
+  el('boss-hp-bar').style.width=`${info.percent}%`;el('boss-hp-text').textContent=`${info.now} / ${info.max}`;
+}
+// ミスはダメージなし。HPもコンボも減らさず、違うキーは入力欄に残さない
+el('boss-input').addEventListener('input',event=>{
+  if(!bossWord||!state.bossFight)return;
+  const field=el('boss-input'),typed=field.value.toLowerCase();
+  if(!bossWord.romaji.startsWith(typed)){
+    let matched=0;while(matched<typed.length&&typed[matched]===bossWord.romaji[matched])matched++;
+    field.value=bossWord.romaji.slice(0,matched);return;
+  }
+  field.value=typed;
+  if(typed.length===bossWord.romaji.length)attackBoss();
+});
+el('boss-input').addEventListener('keydown',event=>{if(event.key.length===1&&!event.ctrlKey&&!event.metaKey&&!event.altKey)playSound('key');});
+// 正解：文字数に応じたダメージ。通常の正解と同じXP・コインも入る
+function attackBoss(){
+  const boss=getBoss(state.bossFight.id),dmg=bossDamage(bossWord.kana);
+  el('boss-input').disabled=true;
+  state.bossFight.hp=Math.max(0,state.bossFight.hp-dmg);
+  state.wordsTyped++;state.correct++;
+  const leveled=gainXp();recordCorrectWord();rewardCoins(leveled);checkBadges();
+  const hit=el('boss-hit');hit.textContent=`💥 ${dmg}ダメージ！`;hit.classList.remove('show');void hit.offsetWidth;hit.classList.add('show');
+  const art=el('boss-art');art.classList.remove('shake');void art.offsetWidth;art.classList.add('shake');
+  playSound('attack');renderBossHp();save();
+  if(state.bossFight.hp<=0)setTimeout(()=>defeatBoss(boss),500);
+  else setTimeout(()=>{el('boss-input').disabled=false;nextBossWord();},450);
+}
+// 撃破：XP・コイン・専用バッジを1回だけ付与
+function defeatBoss(boss){
+  if(!state.bossesDefeated.includes(boss.id))state.bossesDefeated.push(boss.id);
+  state.bossFight=null;
+  const before=state.level;state.xp+=BOSS_REWARD.xp;state.level=levelFromXp(state.xp);
+  state.coins+=BOSS_REWARD.coins+(state.level>before?COIN_LEVELUP_BONUS:0);
+  checkBadges();save();render();renderCoins();
+  el('boss-victory-text').textContent=`${boss.icon} ${boss.name}を たおした！`;
+  el('boss-victory-reward').textContent=`XP +${BOSS_REWARD.xp}　🪙 +${BOSS_REWARD.coins}`;
+  el('boss-victory').hidden=false;el('boss-victory-close').focus();playSound('badge');
+}
+// 撃破画面を閉じて通常モードへ（次に挑戦できるボスがいれば続けて出す）
+function closeBossScreen(){
+  el('boss-victory').hidden=true;el('boss-screen').hidden=true;el('boss-input').disabled=false;
+  maybeStartBoss();
+  if(el('boss-screen').hidden){render();nextWord();}
+}
+el('boss-victory-close').addEventListener('click',closeBossScreen);
+el('boss-later').addEventListener('click',()=>{
+  bossLaterThisSession=true;el('boss-screen').hidden=true;
+  if(!state.gameOver){render();input.focus();}
+});
+// ボスずかん
+function renderBossDex(){
+  el('boss-dex-list').innerHTML=BOSS_DEFS.map(b=>{
+    const done=state.bossesDefeated.includes(b.id);
+    return `<li class="${done?'':'locked'}">${done?'✅':'🔒'} ${done?`${b.icon} ${b.name}`:'？？？'}<small>　Lv.${b.level}でとうじょう</small></li>`;
+  }).join('');
+}
+function openBossDex(){renderBossDex();el('boss-dex-dialog').hidden=false;el('boss-dex-close').focus();}
+function closeBossDex(){el('boss-dex-dialog').hidden=true;if(!input.disabled)input.focus();}
+el('boss-dex-button').addEventListener('click',openBossDex);
+el('boss-dex-close').addEventListener('click',closeBossDex);
+el('boss-dex-dialog').addEventListener('click',event=>{if(event.target===el('boss-dex-dialog'))closeBossDex();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!el('boss-dex-dialog').hidden)closeBossDex();});
+
 function recruit(){
   const c=creatureAt();state.recruited.push({creatureIndex:state.monsterIndex%creatures.length,level:state.level});state.monsterIndex++;state.monsterHp=3;
   playSound('recruit');
@@ -441,6 +531,7 @@ function submit(){
   }
   if(recruited){el('monster-wrap').classList.add('defeated');setTimeout(recruit,750);}
   setTimeout(nextWord,leveled||recruited?1300:580);
+  if(leveled){bossLaterThisSession=false;setTimeout(maybeStartBoss,1400);} // レベルアップ後、挑戦できるボスがいれば出現
 }
 input.addEventListener('input',event=>{
   if(state.gameOver)return;
@@ -472,7 +563,7 @@ el('retry-button').addEventListener('click',()=>{
 el('reset-button').addEventListener('click',()=>{
   if(!confirm('レベルやなかまを さいしょからに もどしますか？'))return;
   // バッジ・連続プレイ日数・コイン・村は、冒険をやり直しても残す
-  stopTimer();state=newState({badges:state.badges,dailyStreak:state.dailyStreak,lastPlayDate:state.lastPlayDate,coins:state.coins,village:state.village});current=words[0];wordHadMiss=false;input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
+  stopTimer();state=newState({badges:state.badges,bossesDefeated:state.bossesDefeated,dailyStreak:state.dailyStreak,lastPlayDate:state.lastPlayDate,coins:state.coins,village:state.village});current=words[0];wordHadMiss=false;input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
 });
 const helpKey='kotoba-quest-help-seen';
 function openHelp(){el('help-dialog').hidden=false;el('help-close').focus();}
@@ -487,6 +578,7 @@ el('help-start').addEventListener('click',closeHelp);
 el('help-dialog').addEventListener('click',event=>{if(event.target===el('help-dialog'))closeHelp();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!el('help-dialog').hidden)closeHelp();});
 updateSoundButton();render();startTimer();renderBadgeCollection();checkBadges(); // 既存プレイヤーの条件達成済みバッジも付与
+maybeStartBoss(); // 挑戦待ち・戦闘中のボスがいれば再開
 let helpSeen=false;
 try{helpSeen=localStorage.getItem(helpKey)==='1';}catch{}
 if(helpSeen)input.focus();else openHelp();
