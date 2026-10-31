@@ -7,6 +7,10 @@ const words = [
   ['つくえ','tsukue','みぢかなもの'],['いす','isu','みぢかなもの'],['かばん','kaban','みぢかなもの'],['めがね','megane','みぢかなもの'],['とけい','tokei','みぢかなもの'],['でんしゃ','densha','みぢかなもの'],['じてんしゃ','jitensha','みぢかなもの'],['でんわ','denwa','みぢかなもの'],['かさ','kasa','みぢかなもの'],['まくら','makura','みぢかなもの'],['おさら','osara','みぢかなもの'],['はさみ','hasami','みぢかなもの'],['けしごむ','keshigomu','みぢかなもの'],['てがみ','tegami','みぢかなもの'],['おもちゃ','omocha','みぢかなもの'],
   ['やま','yama','しぜん'],['かわ','kawa','しぜん'],['うみ','umi','しぜん'],['はな','hana','しぜん'],['き','ki','しぜん'],['もり','mori','しぜん'],['ゆき','yuki','しぜん'],['あめ','ame','しぜん'],['ほし','hoshi','しぜん'],['つき','tsuki','しぜん'],['くも','kumo','しぜん'],['にじ','niji','しぜん'],
   ['あさ','asa','ことば'],['ひる','hiru','ことば'],['よる','yoru','ことば'],['みず','mizu','ことば'],['ひ','hi','ことば'],['ゆめ','yume','ことば'],['えがお','egao','ことば'],['こころ','kokoro','ことば'],['なかま','nakama','ことば'],['ちから','chikara','ことば'],
+  ['こうもり','koumori','どうぶつ'],['くわがた','kuwagata','どうぶつ'],['かたつむり','katatsumuri','どうぶつ'],['かぶとむし','kabutomushi','どうぶつ'],['ちょうちょ','choucho','どうぶつ'],
+  ['ちょこれーと','chokoreeto','たべもの'],['ぱいなっぷる','painappuru','たべもの'],['はんばーぐ','hanbaagu','たべもの'],['おむらいす','omuraisu','たべもの'],['とうもろこし','toumorokoshi','たべもの'],
+  ['ひこうき','hikouki','みぢかなもの'],['ぎゅうにゅう','gyuunyuu','みぢかなもの'],['れいぞうこ','reizouko','みぢかなもの'],['ろけっと','roketto','みぢかなもの'],['しんかんせん','shinkansen','みぢかなもの'],['がっこう','gakkou','みぢかなもの'],
+  ['たいよう','taiyou','しぜん'],['かみなり','kaminari','しぜん'],['たんぽぽ','tanpopo','しぜん'],['ひまわり','himawari','しぜん'],['ながれぼし','nagareboshi','しぜん'],
 ].map(([kana,romaji,category])=>({kana,romaji,category}));
 const creatures=[
   {name:'もこもこウルフ',form:'wolf',color:'#78ac84',light:'#b2d8a4',accent:'#e5b969',stage:'みどりの草原'},
@@ -55,13 +59,13 @@ function xpProgress(xp,level){
   return {current,needed,percent:Math.floor(current/needed*100)};
 }
 const storageKey='kotoba-quest-save-v1';
-const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,badges:[],combo:0,noMiss:0,dailyStreak:0,lastPlayDate:'',coins:0,bossesDefeated:[],bossFight:null,dailyDate:'',dailyCount:0,dailyDone:false,stampDays:0};
+const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,badges:[],combo:0,noMiss:0,dailyStreak:0,lastPlayDate:'',coins:0,bossesDefeated:[],bossFight:null,dailyDate:'',dailyCount:0,dailyDone:false,stampDays:0,wordStats:{}};
 // 配列を共有しない新しいセーブデータ。keep に渡した項目は引き継ぐ
-function newState(keep={}){return {...initial,recruited:[],badges:[],bossesDefeated:[],village:emptyVillage(),...keep};}
+function newState(keep={}){return {...initial,recruited:[],badges:[],bossesDefeated:[],wordStats:{},village:emptyVillage(),...keep};}
 const el=(id)=>document.getElementById(id);
 const input=el('typing-input');
 let state=load();
-let current=words[state.wordIndex%words.length];
+let current=pickNextWord(words,state.wordStats,state.level,'');
 let timer=null,secondsLeft=0,timedOut=false,toastTimer=null;
 let wordHadMiss=false; // いま打っていることばでミスをしたか（ミスなし連続の判定用）
 let soundEnabled=true,audioContext=null;
@@ -101,7 +105,7 @@ function load(){
     const knownIds=BADGE_DEFS.map(b=>b.id);
     const badges=[...new Set(Array.isArray(saved.badges)?saved.badges:[])].filter(id=>knownIds.includes(id));
     const bossesDefeated=[...new Set(Array.isArray(saved.bossesDefeated)?saved.bossesDefeated:[])].filter(id=>getBoss(id));
-    return {...initial,...saved,bossesDefeated,bossFight:normalizeBossFight(saved.bossFight,bossesDefeated),level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:undefined,gameOver:undefined,badges,combo:count(saved.combo),noMiss:count(saved.noMiss),dailyStreak:count(saved.dailyStreak),lastPlayDate:typeof saved.lastPlayDate==='string'?saved.lastPlayDate:'',dailyDate:typeof saved.dailyDate==='string'?saved.dailyDate:'',dailyCount:count(saved.dailyCount),dailyDone:saved.dailyDone===true,stampDays:count(saved.stampDays),coins:count(saved.coins),village:normalizeVillage(saved.village)};
+    return {...initial,...saved,bossesDefeated,bossFight:normalizeBossFight(saved.bossFight,bossesDefeated),level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:undefined,gameOver:undefined,badges,combo:count(saved.combo),noMiss:count(saved.noMiss),dailyStreak:count(saved.dailyStreak),lastPlayDate:typeof saved.lastPlayDate==='string'?saved.lastPlayDate:'',dailyDate:typeof saved.dailyDate==='string'?saved.dailyDate:'',dailyCount:count(saved.dailyCount),dailyDone:saved.dailyDone===true,stampDays:count(saved.stampDays),wordStats:normalizeWordStats(saved.wordStats,words),coins:count(saved.coins),village:normalizeVillage(saved.village)};
   }catch{return newState();}
 }
 function save(wordIndex=state.wordIndex){
@@ -249,12 +253,12 @@ function render(){
   el('level-label').textContent=`レベル ${state.level}`;el('hero-level').textContent=`Lv. ${state.level}`;el('words-typed').textContent=state.wordsTyped;el('correct-count').textContent=state.correct;
   input.disabled=false;
   renderXp();renderCoins();renderDaily();
-  el('word-number').textContent=state.wordIndex%3+1;el('category-label').textContent=current.category;el('word-kana').textContent=current.kana;
+  el('word-number').textContent=state.wordIndex%3+1;el('category-label').textContent=current.category;el('word-kana').textContent=current.kana;el('word-stars').textContent=starText((state.wordStats[current.kana]||{best:0}).best);
   romanHint();renderKeyboard();renderMonster();renderCollection();
   if(state.level>=3&&!timedOut&&el('boss-screen').hidden)startTimer();else{stopTimer();el('timer-pill').hidden=true;}
 }
 function nextWord(){
-  state.wordIndex++;current=words[state.wordIndex%words.length];input.value='';timedOut=false;
+  state.wordIndex++;current=pickNextWord(words,state.wordStats,state.level,current.kana);input.value='';timedOut=false;
   el('typing-feedback').textContent=timerLimit()?'じかん内に うってみよう':'Enterキーでも こうげき！';el('typing-feedback').classList.remove('error');el('battle-message').textContent='ことばを うって こうげきしよう！';
   render();startTimer();input.focus();
 }
@@ -287,7 +291,9 @@ function recordKey(){state.combo++;checkBadges();}
 // ミス：コンボとミスなし連続をリセット
 function recordMiss(){state.combo=0;state.noMiss=0;wordHadMiss=true;}
 // ことばを正解：ミスなし連続と連続プレイ日数を更新
-function recordCorrectWord(){
+function recordCorrectWord(word=current){
+  const result=recordWordResult(state.wordStats,word.kana,wordHadMiss);
+  if(result.after>result.before)toast(`⭐ 「${word.kana}」が ${starText(result.after)} になったよ！`);
   if(!wordHadMiss)state.noMiss++;
   wordHadMiss=false;
   const today=todayKey();
@@ -434,7 +440,7 @@ function openBossScreen(boss){
   playSound('recruit');nextBossWord();
 }
 function nextBossWord(){
-  bossWord=words[Math.floor(Math.random()*words.length)];
+  bossWord=pickNextWord(words,state.wordStats,state.level,bossWord&&bossWord.kana);
   el('boss-kana').textContent=bossWord.kana;el('boss-romaji').textContent=bossWord.romaji;
   el('boss-input').value='';renderBossHp();el('boss-input').focus();
 }
@@ -458,7 +464,7 @@ function attackBoss(){
   el('boss-input').disabled=true;
   state.bossFight.hp=Math.max(0,state.bossFight.hp-dmg);
   state.wordsTyped++;state.correct++;
-  const leveled=gainXp();recordCorrectWord();rewardCoins(leveled);checkBadges();
+  const leveled=gainXp();recordCorrectWord(bossWord);rewardCoins(leveled);checkBadges();
   const hit=el('boss-hit');hit.textContent=`💥 ${dmg}ダメージ！`;hit.classList.remove('show');void hit.offsetWidth;hit.classList.add('show');
   const art=el('boss-art');art.classList.remove('shake');void art.offsetWidth;art.classList.add('shake');
   playSound('attack');renderBossHp();save();
@@ -493,7 +499,25 @@ function renderBossDex(){
     return `<li class="${done?'':'locked'}">${done?'✅':'🔒'} ${done?`${b.icon} ${b.name}`:'？？？'}<small>　Lv.${b.level}でとうじょう</small></li>`;
   }).join('');
 }
-function openBossDex(){renderBossDex();el('boss-dex-dialog').hidden=false;el('boss-dex-close').focus();}
+function openBossDex(){renderBossDex();renderWordDex();showDexTab('word');el('boss-dex-dialog').hidden=false;el('boss-dex-close').focus();}
+// ことばずかん：集めたことばと★を、しゅるいごとに表示
+function renderWordDex(){
+  const seen=words.filter(w=>state.wordStats[w.kana]).length;
+  el('word-dex-summary').textContent=`あつめたことば ${seen} / ${words.length}　★3: ${masteredCount(state.wordStats)}こ`;
+  const categories=[...new Set(words.map(w=>w.category))];
+  el('word-dex-list').innerHTML=categories.map(cat=>`<h3 class="word-dex-cat">${cat}</h3><div class="word-chips">${words.filter(w=>w.category===cat).map(w=>{
+    const stat=state.wordStats[w.kana];
+    return stat?`<span class="word-chip s${stat.best}">${w.kana}<b>${starText(stat.best)}</b></span>`:'<span class="word-chip locked">？？？</span>';
+  }).join('')}</div>`).join('');
+}
+function showDexTab(name){
+  const word=name==='word';
+  el('dex-panel-word').hidden=!word;el('boss-dex-list').hidden=word;
+  el('dex-tab-word').classList.toggle('active',word);el('dex-tab-boss').classList.toggle('active',!word);
+  el('dex-tab-word').setAttribute('aria-selected',String(word));el('dex-tab-boss').setAttribute('aria-selected',String(!word));
+}
+el('dex-tab-word').addEventListener('click',()=>showDexTab('word'));
+el('dex-tab-boss').addEventListener('click',()=>showDexTab('boss'));
 function closeBossDex(){el('boss-dex-dialog').hidden=true;if(!input.disabled)input.focus();}
 el('boss-dex-button').addEventListener('click',openBossDex);
 el('boss-dex-close').addEventListener('click',closeBossDex);
@@ -541,7 +565,7 @@ el('reset-button').addEventListener('click',()=>{
   if(!confirm('レベルやなかまを さいしょからに もどしますか？'))return;
   closeSettings();
   // バッジ・連続プレイ日数・コイン・村・ボスずかん・きょうのぼうけんは、冒険をやり直しても残す
-  stopTimer();state=newState({badges:state.badges,bossesDefeated:state.bossesDefeated,dailyStreak:state.dailyStreak,lastPlayDate:state.lastPlayDate,coins:state.coins,village:state.village,dailyDate:state.dailyDate,dailyCount:state.dailyCount,dailyDone:state.dailyDone,stampDays:state.stampDays});current=words[0];wordHadMiss=false;input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
+  stopTimer();state=newState({badges:state.badges,bossesDefeated:state.bossesDefeated,dailyStreak:state.dailyStreak,lastPlayDate:state.lastPlayDate,coins:state.coins,village:state.village,dailyDate:state.dailyDate,dailyCount:state.dailyCount,dailyDone:state.dailyDone,stampDays:state.stampDays,wordStats:state.wordStats});current=pickNextWord(words,state.wordStats,state.level,'');wordHadMiss=false;input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
 });
 // せってい画面（あそびかた・おと・リセット）
 function openSettings(){el('settings-dialog').hidden=false;el('settings-close').focus();}
