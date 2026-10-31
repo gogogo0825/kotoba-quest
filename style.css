@@ -66,6 +66,22 @@
 .build-popup .build-popup-icon{font-size:2.6rem}
 .build-popup.show{animation:build-popup-show 2.4s ease both}
 @keyframes build-popup-show{0%{opacity:0;transform:translate(-50%,16px) scale(.6)}12%{opacity:1;transform:translate(-50%,0) scale(1.12)}22%{transform:translate(-50%,0) scale(1)}85%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:0;transform:translate(-50%,-12px) scale(1)}}
+/* ===== やさしさ調整：きょうのぼうけん・せってい ===== */
+.top-status .save-button{height:44px;min-width:44px;font-size:13px}
+#daily-popup{top:60%}
+.daily-card{margin:12px 3px 0;padding:10px 12px;border-radius:14px;background:#fff7d6;border:2px solid #f0d27a;color:#7a4a00}
+.daily-title{display:flex;justify-content:space-between;gap:8px;font-weight:800;font-size:14px}
+.daily-dots{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 2px}
+.daily-dots i{width:18px;height:18px;border-radius:50%;background:#efe3b8;border:2px solid #e3cf8a}
+.daily-dots i.on{background:#f3b72b;border-color:#d99a10}
+.daily-note{margin:4px 0 0;font-size:13px;font-weight:700}
+.daily-card.done{background:#e4f6d8;border-color:#92c96e;color:#2f6a2a}
+.settings-card{width:min(360px,100%)}
+.settings-list{display:grid;gap:10px;margin:14px 0}
+.settings-button,.settings-close{min-height:48px;padding:10px 14px;border-radius:12px;border:2px solid #cdbf9f;background:#fff;font:inherit;font-weight:800;cursor:pointer;text-align:left}
+.settings-close{width:100%;text-align:center}
+.settings-danger{color:#a33;border-color:#e3b3ad}
+.settings-note{margin:0 0 10px;font-size:13px;color:#7a6e5d}
 /* ===== ボス戦 ===== */
 .boss-screen{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:rgba(40,28,64,.88);padding:12px}
 .boss-screen[hidden],.boss-victory[hidden]{display:none}

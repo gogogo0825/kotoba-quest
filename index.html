@@ -154,7 +154,7 @@
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="ことばクエスト ホーム"><span class="brand-mark">K</span><span>ことばクエスト</span></a>
-      <div class="top-status"><span class="save-state"><span class="save-dot"></span>ぼうけんを保存中</span><button class="icon-button save-button" id="village-button" type="button" title="ことばのむら" aria-label="ことばのむらを見る">🏡 むら</button><button class="icon-button save-button" id="boss-dex-button" type="button" title="ボスずかん" aria-label="ボスずかんを見る">👹 ボス</button><button class="icon-button save-button" id="badge-button" type="button" title="バッジをみる" aria-label="バッジコレクションを見る">バッジ</button><button class="icon-button save-button" id="help-button" type="button" title="あそびかた" aria-label="あそびかたを見る">あそびかた</button><button class="icon-button save-button" id="save-button" type="button" title="ぼうけんをセーブ" aria-label="ぼうけんをセーブ">セーブ</button><button class="icon-button sound-button" id="sound-button" type="button" title="効果音をオフ" aria-label="効果音をオフ" aria-pressed="true">♪</button><button class="icon-button" id="reset-button" type="button" title="ぼうけんをリセット" aria-label="ぼうけんをリセット"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5"/></svg></button></div>
+      <div class="top-status"><span class="save-state"><span class="save-dot"></span>ぼうけんを保存中</span><button class="icon-button save-button" id="village-button" type="button" title="ことばのむら" aria-label="ことばのむらを見る">🏡 むら</button><button class="icon-button save-button" id="boss-dex-button" type="button" title="ボスずかん" aria-label="ボスずかんを見る">👹 ボス</button><button class="icon-button save-button" id="badge-button" type="button" title="バッジをみる" aria-label="バッジコレクションを見る">バッジ</button><button class="icon-button save-button" id="settings-button" type="button" title="せってい" aria-label="せっていを開く">⚙ せってい</button></div>
     </header>
     <main class="layout">
       <section class="game-column" aria-label="タイピングぼうけん">
@@ -185,9 +185,10 @@
               <path d="m48 7 3-6 4 6" fill="#f0c968" stroke="#344d40" stroke-width="2" stroke-linejoin="round"/>
               <path d="m31 31-5 5 10 2m31-7 5 5-9 2" fill="#e5b969" stroke="#344d40" stroke-width="2" stroke-linejoin="round"/>
               <path d="m24 72 8 3-3 9-9-3m50-8 8 1 2 8-9 2" fill="#ffd39e" stroke="#344d40" stroke-width="2.5" stroke-linejoin="round"/>
-            </svg></div><div class="hero-caption"><span class="hero-name">ぼうけんしゃ</span><span class="hero-level" id="hero-level">Lv. 1</span></div><div class="hero-health" aria-label="冒険者のHP"><span>HP</span><span class="hero-health-track"><span class="hero-health-fill" id="hero-health"></span></span><span id="hero-hp-label">3 / 3</span></div></div>
+            </svg></div><div class="hero-caption"><span class="hero-name">ぼうけんしゃ</span><span class="hero-level" id="hero-level">Lv. 1</span></div></div>
+          
           </div>
-          <div class="game-over" id="game-over" role="dialog" aria-modal="true" aria-labelledby="game-over-title" hidden><h2 id="game-over-title">ゲームオーバー</h2><p>HPがなくなっちゃった！</p><button id="retry-button" type="button">もういちど たたかう</button></div>
+          
           <p class="battle-message" id="battle-message" aria-live="polite">ことばを うって こうげきしよう！</p>
         </section>
         <section class="typing-panel" aria-labelledby="typing-heading">
@@ -197,6 +198,7 @@
           <div class="input-row" id="input-row"><span class="input-prefix">Aa</span><input id="typing-input" type="text" inputmode="latin" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ここにローマ字を入力" aria-describedby="typing-feedback"><span class="input-feedback" id="typing-feedback" aria-live="polite">Enterキーでも こうげき！</span></div>
           <div class="keyboard-guide" id="keyboard-guide" aria-label="キーボードと指づかい"></div>
         </section>
+        <section class="daily-card" id="daily-card" aria-label="きょうのぼうけん"><div class="daily-title"><strong>⭐ きょうのぼうけん</strong><span id="daily-count">0 / 10</span></div><div class="daily-dots" id="daily-dots" aria-hidden="true"></div><p class="daily-note" id="daily-note"></p></section>
         <section class="progress-section" aria-label="レベルアップまで"><div class="progress-copy"><span>つぎのレベルまで</span><strong><span id="xp-label">XP 0 / 100</span><span class="xp-percent" id="xp-percent">0%</span></strong></div><div class="progress-track"><span id="xp-bar"></span></div></section>
       </section>
       <aside class="side-column" aria-label="ぼうけんのじょうほう">
@@ -213,7 +215,7 @@
         <ol class="help-steps">
           <li><span class="help-icon">🎯</span><div><strong>ことばを うとう</strong><p>「このことばを うとう」に出た ことばを、キーボードで ローマ字で うちます。（れい：「ねこ」→ <kbd>neko</kbd>）</p></div></li>
           <li><span class="help-icon">⚔️</span><div><strong>こうげき！</strong><p>ぜんぶ うつと モンスターに こうげき！ 3かい あてると たおせて、なかまに なります。</p></div></li>
-          <li><span class="help-icon">❤️</span><div><strong>HPに ちゅうい</strong><p>まちがえたり、じかんが すぎたりすると ぼうけんしゃの HPが へります。0に なると ゲームオーバー。でも もういちど ちょうせんできます。</p></div></li>
+          <li><span class="help-icon">❤️</span><div><strong>まちがえても だいじょうぶ</strong><p>まちがえたら ヒントがでるよ。HPは へらないし、ゲームオーバーも ないよ。もういちど うってみよう。</p></div></li>
           <li><span class="help-icon">⭐</span><div><strong>レベルアップ</strong><p>ただしく うつと XPが たまって レベルが あがります。あがるほど ヒントが へって むずかしくなります。</p></div></li>
           <li><span class="help-icon">📖</span><div><strong>ずかんを うめよう</strong><p>たおした モンスターは「モンスターずかん」に とうろくされます。</p></div></li>
         </ol>
@@ -248,6 +250,18 @@
         <ul class="badge-grid" id="badge-grid"></ul>
       </div>
     </div>
+    <div id="settings-dialog" class="help-overlay" hidden>
+      <div class="help-card settings-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <h2 id="settings-title">⚙ せってい</h2>
+        <div class="settings-list">
+          <button class="settings-button" id="help-button" type="button">❓ あそびかた</button>
+          <button class="settings-button" id="sound-button" type="button" aria-pressed="true">♪ おと：ON</button>
+          <button class="settings-button settings-danger" id="reset-button" type="button">🗑 さいしょからやりなおす（おとなの人と）</button>
+        </div>
+        <p class="settings-note">ぼうけんは じどうで ほぞんされているよ。</p>
+        <button class="settings-close" id="settings-close" type="button">とじる</button>
+      </div>
+    </div>
     <div id="boss-screen" class="boss-screen" hidden>
       <div class="boss-card" role="dialog" aria-modal="true" aria-labelledby="boss-name">
         <div id="boss-art" class="boss-art" aria-hidden="true"></div>
@@ -273,6 +287,7 @@
         <button id="boss-dex-close" class="boss-later" type="button">とじる</button>
       </div>
     </div>
+    <div class="build-popup" id="daily-popup" role="status" aria-live="polite"><span class="build-popup-icon">⭐</span><div><strong>⭐ きょうのぼうけん クリア！</strong><span id="daily-popup-text"></span></div></div>
     <div class="build-popup" id="build-popup" role="status" aria-live="polite"><span class="build-popup-icon" id="build-popup-icon">✨</span><div><strong>✨ 建設完了！</strong><span id="build-popup-text"></span><span id="build-popup-extra"></span></div></div>
     <div class="badge-popup" id="badge-popup" role="status" aria-live="polite"><span class="badge-popup-icon" id="badge-popup-icon">🏅</span><div><strong>🏅 バッジゲット！</strong><span id="badge-popup-text"></span></div></div>
     <div class="levelup-banner" id="levelup-banner" role="status" aria-live="polite"><span class="levelup-emoji">🎉</span><strong>レベルアップ！</strong><span id="levelup-text"></span></div>
@@ -281,6 +296,8 @@
   <script src="badges.js"></script>
   <script src="village.js"></script>
   <script src="bosses.js"></script>
+  <script src="typing.js"></script>
+  <script src="daily.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

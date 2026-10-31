@@ -55,10 +55,9 @@ function xpProgress(xp,level){
   return {current,needed,percent:Math.floor(current/needed*100)};
 }
 const storageKey='kotoba-quest-save-v1';
-const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,heroHp:3,gameOver:false,badges:[],combo:0,noMiss:0,dailyStreak:0,lastPlayDate:'',coins:0,bossesDefeated:[],bossFight:null};
+const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,badges:[],combo:0,noMiss:0,dailyStreak:0,lastPlayDate:'',coins:0,bossesDefeated:[],bossFight:null,dailyDate:'',dailyCount:0,dailyDone:false,stampDays:0};
 // 配列を共有しない新しいセーブデータ。keep に渡した項目は引き継ぐ
 function newState(keep={}){return {...initial,recruited:[],badges:[],bossesDefeated:[],village:emptyVillage(),...keep};}
-const maxHeroHp=3;
 const el=(id)=>document.getElementById(id);
 const input=el('typing-input');
 let state=load();
@@ -87,23 +86,22 @@ function playSound(type){
 }
 function updateSoundButton(){
   const button=el('sound-button');
-  button.textContent=soundEnabled?'♪':'×';button.setAttribute('aria-pressed',String(soundEnabled));
-  button.setAttribute('aria-label',`効果音を${soundEnabled?'オフ':'オン'}`);
-  button.title=`効果音を${soundEnabled?'オフ':'オン'}`;
+  button.textContent=soundEnabled?'♪ おと：ON':'🔇 おと：OFF';button.setAttribute('aria-pressed',String(soundEnabled));
+  button.setAttribute('aria-label',`効果音を${soundEnabled?'オフ':'オン'}にする`);
+  button.title=`効果音を${soundEnabled?'オフ':'オン'}にする`;
 }
 
 function load(){
   try{
     const saved=JSON.parse(localStorage.getItem(storageKey));
     if(!saved||typeof saved!=='object')return newState();
-    const savedHeroHp=Number(saved.heroHp??maxHeroHp);
     const savedXp=Math.max(0,Number(saved.xp)||0);
     const count=value=>Math.max(0,Math.floor(Number(value)||0));
     // 未知のバッジIDや重複は取り除く
     const knownIds=BADGE_DEFS.map(b=>b.id);
     const badges=[...new Set(Array.isArray(saved.badges)?saved.badges:[])].filter(id=>knownIds.includes(id));
     const bossesDefeated=[...new Set(Array.isArray(saved.bossesDefeated)?saved.bossesDefeated:[])].filter(id=>getBoss(id));
-    return {...initial,...saved,bossesDefeated,bossFight:normalizeBossFight(saved.bossFight,bossesDefeated),level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:Number.isFinite(savedHeroHp)?Math.max(0,Math.min(maxHeroHp,savedHeroHp)):maxHeroHp,gameOver:saved.gameOver===true,badges,combo:count(saved.combo),noMiss:count(saved.noMiss),dailyStreak:count(saved.dailyStreak),lastPlayDate:typeof saved.lastPlayDate==='string'?saved.lastPlayDate:'',coins:count(saved.coins),village:normalizeVillage(saved.village)};
+    return {...initial,...saved,bossesDefeated,bossFight:normalizeBossFight(saved.bossFight,bossesDefeated),level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:undefined,gameOver:undefined,badges,combo:count(saved.combo),noMiss:count(saved.noMiss),dailyStreak:count(saved.dailyStreak),lastPlayDate:typeof saved.lastPlayDate==='string'?saved.lastPlayDate:'',dailyDate:typeof saved.dailyDate==='string'?saved.dailyDate:'',dailyCount:count(saved.dailyCount),dailyDone:saved.dailyDone===true,stampDays:count(saved.stampDays),coins:count(saved.coins),village:normalizeVillage(saved.village)};
   }catch{return newState();}
 }
 function save(wordIndex=state.wordIndex){
@@ -183,7 +181,7 @@ function romanHint(){
 function renderKeyboard(){
   const guide=el('keyboard-guide');
   guide.hidden=false;
-  const next=current.romaji[input.value.length]||'';
+  const next=(matchRomaji(current,input.value)||current.romaji)[input.value.length]||'';
   const fingers={
     q:'left-pinky',a:'left-pinky',z:'left-pinky',
     w:'left-ring',s:'left-ring',x:'left-ring',
@@ -216,32 +214,16 @@ function timerLimit(){return state.level<3?0:Math.max(12,32-(state.level-3)*2);}
 function stopTimer(){clearInterval(timer);timer=null;}
 function startTimer(){
   stopTimer();const limit=timerLimit();
-  if(!limit||timedOut||state.gameOver){el('timer-pill').hidden=true;return;}
+  if(!limit||timedOut){el('timer-pill').hidden=true;return;}
   secondsLeft=limit;el('timer-pill').hidden=false;el('timer-pill').classList.remove('urgent');el('timer-label').textContent=secondsLeft;
   timer=setInterval(()=>{secondsLeft--;el('timer-label').textContent=secondsLeft;el('timer-pill').classList.toggle('urgent',secondsLeft<=5);if(secondsLeft<=0){stopTimer();timedOut=true;el('timer-pill').hidden=true;hint(true);}},1000);
 }
 function hint(time=false){
-  const key=current.romaji[input.value.length]||current.romaji[0];
+  const word=matchRomaji(current,input.value)||current.romaji,key=word[input.value.length]||word[0];
   el('typing-feedback').textContent=time?`ゆっくりで だいじょうぶ！ つぎは「${key}」だよ`:`つぎは「${key}」キーだよ！ もういちど`;
   el('typing-feedback').classList.add('error');el('battle-message').textContent=time?'じかんだよ！ ヒントをみてつづけよう':`ヒント！ 「${key}」キーをおしてね`;
   el('input-row').classList.remove('has-error');void el('input-row').offsetWidth;el('input-row').classList.add('has-error');
   if(time)toast('じかんは おしまい！ あとは ゆっくり うってみよう');
-}
-function takeDamage(){
-  if(state.gameOver)return;
-  state.heroHp=Math.max(0,state.heroHp-1);
-  el('hero-health').style.width=`${state.heroHp/maxHeroHp*100}%`;
-  el('hero-hp-label').textContent=`${state.heroHp} / ${maxHeroHp}`;
-  el('hero-side').classList.remove('hurt');void el('hero-side').offsetWidth;el('hero-side').classList.add('hurt');
-  el('battle-effects').textContent='ダメージ！';el('battle-effects').classList.remove('show');void el('battle-effects').offsetWidth;el('battle-effects').classList.add('show');
-  if(state.heroHp===0){
-    state.gameOver=true;stopTimer();input.disabled=true;
-    el('game-over').hidden=false;el('battle-message').textContent='ゲームオーバー！ もういちど たたかおう';
-    el('retry-button').focus();
-  }else{
-    el('battle-message').textContent=`こうげきを うけた！ のこりHP ${state.heroHp}`;
-  }
-  save();
 }
 function renderMonster(){
   const c=creatureAt();el('enemy-name').textContent=c.name;el('enemy-level').textContent=`Lv. ${state.level}`;el('stage-label').textContent=c.stage;
@@ -265,15 +247,13 @@ function renderCollection(){
 }
 function render(){
   el('level-label').textContent=`レベル ${state.level}`;el('hero-level').textContent=`Lv. ${state.level}`;el('words-typed').textContent=state.wordsTyped;el('correct-count').textContent=state.correct;
-  el('hero-health').style.width=`${state.heroHp/maxHeroHp*100}%`;el('hero-hp-label').textContent=`${state.heroHp} / ${maxHeroHp}`;
-  input.disabled=state.gameOver;el('game-over').hidden=!state.gameOver;
-  renderXp();renderCoins();
+  input.disabled=false;
+  renderXp();renderCoins();renderDaily();
   el('word-number').textContent=state.wordIndex%3+1;el('category-label').textContent=current.category;el('word-kana').textContent=current.kana;
   romanHint();renderKeyboard();renderMonster();renderCollection();
-  if(state.level>=3&&!timedOut&&!state.gameOver&&el('boss-screen').hidden)startTimer();else{stopTimer();el('timer-pill').hidden=true;}
+  if(state.level>=3&&!timedOut&&el('boss-screen').hidden)startTimer();else{stopTimer();el('timer-pill').hidden=true;}
 }
 function nextWord(){
-  if(state.gameOver)return;
   state.wordIndex++;current=words[state.wordIndex%words.length];input.value='';timedOut=false;
   el('typing-feedback').textContent=timerLimit()?'じかん内に うってみよう':'Enterキーでも こうげき！';el('typing-feedback').classList.remove('error');el('battle-message').textContent='ことばを うって こうげきしよう！';
   render();startTimer();input.focus();
@@ -313,6 +293,21 @@ function recordCorrectWord(){
   const today=todayKey();
   state.dailyStreak=nextDailyStreak(state.lastPlayDate,state.dailyStreak,today);
   state.lastPlayDate=today;
+  if(advanceDaily(state,today)){state.coins+=DAILY_BONUS_COINS;showDailyClear();}
+  renderDaily();
+}
+// きょうのぼうけん：10この丸と、できたかずを描画
+function renderDaily(){
+  const today=todayKey(),count=dailyCount(state,today),done=dailyDone(state,today);
+  el('daily-count').textContent=`${count} / ${DAILY_GOAL}`;
+  el('daily-dots').innerHTML=Array.from({length:DAILY_GOAL},(_,i)=>`<i class="${i<count?'on':''}"></i>`).join('');
+  el('daily-note').textContent=done?`✅ クリア！ スタンプ ${state.stampDays}こ`:`あと ${DAILY_GOAL-count}ことば！`;
+  el('daily-card').classList.toggle('done',done);
+}
+function showDailyClear(){
+  el('daily-popup-text').textContent=`🪙 +${DAILY_BONUS_COINS}　スタンプ ${state.stampDays}こ`;
+  const popup=el('daily-popup');popup.classList.remove('show');void popup.offsetWidth;popup.classList.add('show');
+  renderCoins();playSound('badge');
 }
 // 条件を満たした新しいバッジを付与して保存し、演出を出す
 function checkBadges(){
@@ -426,7 +421,7 @@ let bossLaterThisSession=false; // 「あとでたたかう」を選んだら、
 
 // 挑戦待ちのボスがいれば専用画面を開く（レベルアップ後・読み込み後に呼ぶ）
 function maybeStartBoss(){
-  if(!el('boss-screen').hidden||state.gameOver||bossLaterThisSession)return;
+  if(!el('boss-screen').hidden||bossLaterThisSession)return;
   const boss=state.bossFight?getBoss(state.bossFight.id):findPendingBoss(state.level,state.bossesDefeated);
   if(!boss)return;
   if(!state.bossFight)state.bossFight={id:boss.id,hp:boss.hp};
@@ -452,12 +447,9 @@ function renderBossHp(){
 el('boss-input').addEventListener('input',event=>{
   if(!bossWord||!state.bossFight)return;
   const field=el('boss-input'),typed=field.value.toLowerCase();
-  if(!bossWord.romaji.startsWith(typed)){
-    let matched=0;while(matched<typed.length&&typed[matched]===bossWord.romaji[matched])matched++;
-    field.value=bossWord.romaji.slice(0,matched);return;
-  }
+  if(!matchRomaji(bossWord,typed)){field.value=typed.slice(0,matchedLength(bossWord,typed));return;}
   field.value=typed;
-  if(typed.length===bossWord.romaji.length)attackBoss();
+  if(isRomajiComplete(bossWord,typed))attackBoss();
 });
 el('boss-input').addEventListener('keydown',event=>{if(event.key.length===1&&!event.ctrlKey&&!event.metaKey&&!event.altKey)playSound('key');});
 // 正解：文字数に応じたダメージ。通常の正解と同じXP・コインも入る
@@ -492,8 +484,7 @@ function closeBossScreen(){
 }
 el('boss-victory-close').addEventListener('click',closeBossScreen);
 el('boss-later').addEventListener('click',()=>{
-  bossLaterThisSession=true;el('boss-screen').hidden=true;
-  if(!state.gameOver){render();input.focus();}
+  bossLaterThisSession=true;el('boss-screen').hidden=true;render();input.focus();
 });
 // ボスずかん
 function renderBossDex(){
@@ -515,8 +506,7 @@ function recruit(){
   renderMonster();renderCollection();el('battle-message').textContent=`${c.name}が なかまに なった！`;toast(`${c.name}が なかまに なったよ！`);
 }
 function submit(){
-  if(state.gameOver)return;
-  if(input.value!==current.romaji)return;stopTimer();state.wordsTyped++;state.correct++;state.monsterHp--;
+  if(!isRomajiComplete(current,input.value))return;stopTimer();state.wordsTyped++;state.correct++;state.monsterHp--;
   playSound('attack');
   const leveled=gainXp();recordCorrectWord();rewardCoins(leveled);checkBadges();el('enemy-health').style.width=`${Math.max(0,state.monsterHp/3*100)}%`;
   el('monster-wrap').classList.remove('hit');void el('monster-wrap').offsetWidth;el('monster-wrap').classList.add('hit');
@@ -534,39 +524,34 @@ function submit(){
   if(leveled){bossLaterThisSession=false;setTimeout(maybeStartBoss,1400);} // レベルアップ後、挑戦できるボスがいれば出現
 }
 input.addEventListener('input',event=>{
-  if(state.gameOver)return;
   const typed=input.value.toLowerCase();
-  if(!current.romaji.startsWith(typed)){
-    let matched=0;
-    while(matched<typed.length&&typed[matched]===current.romaji[matched])matched++;
-    input.value=current.romaji.slice(0,matched);
+  if(!matchRomaji(current,typed)){
+    // 違うキーは入力欄に残さず、ヒントを出すだけ（HPは減らない）
+    input.value=typed.slice(0,matchedLength(current,typed));
     hint();
     recordMiss();
-    takeDamage();
   }
-  else{input.value=typed;if(event.inputType&&event.inputType.startsWith('insert'))recordKey();el('typing-feedback').textContent=timerLimit()&&!timedOut?'じかん内に うってみよう':'Enterキーでも こうげき！';el('typing-feedback').classList.remove('error');el('battle-message').textContent='そのちょうし！';if(typed.length===current.romaji.length)submit();}
+  else{input.value=typed;if(event.inputType&&event.inputType.startsWith('insert'))recordKey();el('typing-feedback').textContent=timerLimit()&&!timedOut?'じかん内に うってみよう':'Enterキーでも こうげき！';el('typing-feedback').classList.remove('error');el('battle-message').textContent='そのちょうし！';if(isRomajiComplete(current,typed))submit();}
   renderKeyboard();
 });
-input.addEventListener('keydown',event=>{if(event.key==='Enter'&&input.value===current.romaji)submit();});
+input.addEventListener('keydown',event=>{if(event.key==='Enter'&&isRomajiComplete(current,input.value))submit();});
 input.addEventListener('keydown',event=>{if(event.key.length===1&&!event.ctrlKey&&!event.metaKey&&!event.altKey)playSound('key');});
 el('sound-button').addEventListener('click',()=>{soundEnabled=!soundEnabled;updateSoundButton();});
-el('save-button').addEventListener('click',()=>{
-  if(save())toast('ぼうけんをセーブしたよ！');
-  else toast('セーブできませんでした。ブラウザの保存設定を確認してね');
-});
-el('retry-button').addEventListener('click',()=>{
-  state.gameOver=false;state.heroHp=maxHeroHp;state.monsterHp=3;input.value='';timedOut=false;
-  el('hero-side').classList.remove('hurt');el('game-over').hidden=true;
-  el('battle-message').textContent='もういちど ことばを うって こうげきしよう！';
-  save();render();input.focus();
-});
 el('reset-button').addEventListener('click',()=>{
   if(!confirm('レベルやなかまを さいしょからに もどしますか？'))return;
-  // バッジ・連続プレイ日数・コイン・村は、冒険をやり直しても残す
-  stopTimer();state=newState({badges:state.badges,bossesDefeated:state.bossesDefeated,dailyStreak:state.dailyStreak,lastPlayDate:state.lastPlayDate,coins:state.coins,village:state.village});current=words[0];wordHadMiss=false;input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
+  closeSettings();
+  // バッジ・連続プレイ日数・コイン・村・ボスずかん・きょうのぼうけんは、冒険をやり直しても残す
+  stopTimer();state=newState({badges:state.badges,bossesDefeated:state.bossesDefeated,dailyStreak:state.dailyStreak,lastPlayDate:state.lastPlayDate,coins:state.coins,village:state.village,dailyDate:state.dailyDate,dailyCount:state.dailyCount,dailyDone:state.dailyDone,stampDays:state.stampDays});current=words[0];wordHadMiss=false;input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
 });
+// せってい画面（あそびかた・おと・リセット）
+function openSettings(){el('settings-dialog').hidden=false;el('settings-close').focus();}
+function closeSettings(){el('settings-dialog').hidden=true;if(!input.disabled)input.focus();}
+el('settings-button').addEventListener('click',openSettings);
+el('settings-close').addEventListener('click',closeSettings);
+el('settings-dialog').addEventListener('click',event=>{if(event.target===el('settings-dialog'))closeSettings();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!el('settings-dialog').hidden)closeSettings();});
 const helpKey='kotoba-quest-help-seen';
-function openHelp(){el('help-dialog').hidden=false;el('help-close').focus();}
+function openHelp(){el('settings-dialog').hidden=true;el('help-dialog').hidden=false;el('help-close').focus();}
 function closeHelp(){
   el('help-dialog').hidden=true;
   try{localStorage.setItem(helpKey,'1');}catch{}
