@@ -298,4 +298,19 @@ el('reset-button').addEventListener('click',()=>{
   if(!confirm('レベルやなかまを さいしょからに もどしますか？'))return;
   stopTimer();state={...initial,recruited:[]};current=words[0];input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
 });
-updateSoundButton();render();startTimer();input.focus();
+const helpKey='kotoba-quest-help-seen';
+function openHelp(){el('help-dialog').hidden=false;el('help-close').focus();}
+function closeHelp(){
+  el('help-dialog').hidden=true;
+  try{localStorage.setItem(helpKey,'1');}catch{}
+  if(!input.disabled)input.focus();
+}
+el('help-button').addEventListener('click',openHelp);
+el('help-close').addEventListener('click',closeHelp);
+el('help-start').addEventListener('click',closeHelp);
+el('help-dialog').addEventListener('click',event=>{if(event.target===el('help-dialog'))closeHelp();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!el('help-dialog').hidden)closeHelp();});
+updateSoundButton();render();startTimer();
+let helpSeen=false;
+try{helpSeen=localStorage.getItem(helpKey)==='1';}catch{}
+if(helpSeen)input.focus();else openHelp();
