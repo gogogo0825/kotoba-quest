@@ -8,31 +8,172 @@
   <link rel="stylesheet" href="style.css">
   <style>
     [hidden] { display: none !important; }
-    .keyboard-guide { flex-direction: column; align-items: center; gap: 4px; }
-    .keyboard-row { display: flex; gap: 5px; }
-    .keyboard-row:nth-child(2) { padding-left: 12px; }
-    .keyboard-row:nth-child(3) { padding-left: 24px; }
-    .keycap { flex: 0 0 30px; }
-    @media (max-width: 390px) { .keycap { flex-basis: 27px; } }
+    .keyboard-guide { display: grid; justify-items: center; gap: 9px; margin-top: 17px; padding: 14px 10px 11px; border: 1px solid #e8ebdf; border-radius: 12px; background: #f8f9f4; }
+    .keyboard-title { margin: 0; color: #647568; font-size: 11px; font-weight: 800; }
+    .keyboard-rows { display: grid; gap: 4px; }
+    .keyboard-row { display: flex; justify-content: center; gap: 4px; }
+    .keyboard-row:nth-child(2) { padding-left: 14px; }
+    .keyboard-row:nth-child(3) { padding-left: 28px; }
+    .keycap { flex: 0 0 30px; height: 30px; display: grid; place-items: center; border: 1px solid rgba(35,51,47,.12); border-bottom-width: 3px; border-radius: 6px; color: #314238; font-size: 12px; font-weight: 800; }
+    .finger-left-pinky, .finger-right-pinky { background: #f7d8d1; }
+    .finger-left-ring, .finger-right-ring { background: #f8e2c6; }
+    .finger-left-middle, .finger-right-middle { background: #f6efbc; }
+    .finger-left-index, .finger-right-index { background: #d7edcf; }
+    .keycap.active { position: relative; z-index: 1; outline: 3px solid #e66c4e; outline-offset: 1px; transform: translateY(-2px); box-shadow: 0 3px 8px rgba(230,108,78,.28); }
+    .finger-tip { margin: 0; color: #42584a; font-size: 11px; text-align: center; }
+    .finger-tip kbd { padding: 2px 6px; border-radius: 5px; background: #fff; color: #b94d38; font: inherit; font-weight: 900; }
+    .finger-guide { width: 100%; }
+    .finger-guide-title { margin: 0 0 5px; color: #7a897e; font-size: 9px; font-weight: 800; text-align: center; }
+    .hand-guide { display: flex; justify-content: center; align-items: end; gap: 12px; }
+    .hand-unit { display: grid; justify-items: center; gap: 2px; color: #788780; font-size: 9px; font-weight: 800; }
+    .hand-illustration { position: relative; width: 111px; height: 126px; overflow: hidden; background: #fff; }
+    .hand-image { position: absolute; top: 0; left: 0; width: 200%; max-width: none; height: 100%; }
+    .hand-illustration.right-hand .hand-image { left: -100%; }
+    .hand-active-dot { position: absolute; width: 10px; height: 10px; border: 2px solid #fffaf5; border-radius: 50%; background: #e94f57; box-shadow: 0 1px 3px rgba(116,51,48,.4); transform: translate(-50%,-50%); pointer-events: none; }
+    .space-key { width: 174px; height: 23px; display: grid; place-items: center; border: 1px solid #dfe4db; border-bottom-width: 3px; border-radius: 6px; background: #fff; color: #788780; font-size: 9px; font-weight: 700; }
+    .keyboard-bottom { display: grid; justify-items: center; gap: 6px; }
+    @media (max-width: 390px) { .keyboard-guide { padding-right: 5px; padding-left: 5px; } .keyboard-row { gap: 2px; } .keycap { flex-basis: 23px; height: 27px; } .keyboard-row:nth-child(2) { padding-left: 10px; } .keyboard-row:nth-child(3) { padding-left: 19px; } .hand-guide { gap: 4px; } .hand-illustration { width: 95px; height: 108px; } }
+    .sound-button { font-size: 19px; font-weight: 800; }
+    .sound-button[aria-pressed="false"] { color: #9aa49a; }
+    .save-button { width: auto; padding: 0 10px; color: #2f7862; font-size: 11px; font-weight: 800; }
+    .battle-scene { transition: background 1.2s ease; }
+    .battle-scene.time-evening { background: linear-gradient(180deg,#f3b99e 0%,#f4d0a2 66%,#d89b79 100%); }
+    .battle-scene.time-night { background: linear-gradient(180deg,#273957 0%,#526487 66%,#536b72 100%); }
+    .battle-scene.time-morning { background: linear-gradient(180deg,#e7c9e8 0%,#f6dfc4 66%,#b5c987 100%); }
+    .battle-scene.time-evening .scene-sun { background: #f48d68; box-shadow: 0 0 0 10px rgba(255,199,147,.26),0 0 28px rgba(255,183,113,.65); }
+    .battle-scene.time-night .scene-sun { opacity: 0; }
+    .battle-scene.time-morning .scene-sun { background: #ffe6a1; box-shadow: 0 0 0 10px rgba(255,245,205,.27); }
+    .battle-scene.time-evening .scene-ground { background: linear-gradient(180deg,#d4a36f,#a97867); }
+    .battle-scene.time-night .scene-ground { background: linear-gradient(180deg,#657d77,#435f60); }
+    .battle-scene.time-morning .scene-ground { background: linear-gradient(180deg,#b4ce8d,#96b77a); }
+    .battle-scene.time-night .scene-cloud { background: rgba(195,211,235,.38); }
+    .scene-moon { position: absolute; z-index: 1; top: 34px; right: 15%; width: 43px; height: 43px; border-radius: 50%; background: #fff2c5; box-shadow: 0 0 0 8px rgba(225,235,255,.1),0 0 25px rgba(255,242,197,.45); }
+    .scene-stars { position: absolute; z-index: 1; inset: 20px 10% 70px; color: #fff2c5; pointer-events: none; }
+    .scene-stars span { position: absolute; animation: night-twinkle 2.4s ease-in-out infinite alternate; }
+    .scene-stars span:nth-child(1) { top: 16px; left: 18%; font-size: 13px; }
+    .scene-stars span:nth-child(2) { top: 48px; left: 43%; font-size: 10px; animation-delay: .6s; }
+    .scene-stars span:nth-child(3) { top: 5px; right: 38%; font-size: 12px; animation-delay: 1s; }
+    .scene-stars span:nth-child(4) { top: 45px; right: 18%; font-size: 9px; animation-delay: .3s; }
+    .scene-stars span:nth-child(5) { top: 4px; left: 62%; font-size: 8px; animation-delay: 1.4s; }
+    .battle-scene:not(.time-night) .scene-moon, .battle-scene:not(.time-night) .scene-stars { display: none; }
+    .battle-scene.time-night .stage-label { color: #43516c; }
+    @keyframes night-twinkle { from { opacity: .45; transform: scale(.8); } to { opacity: 1; transform: scale(1.15); } }
+    @media (prefers-reduced-motion: reduce) { .battle-scene { transition: none; } .scene-stars span { animation: none; } }
+    .hero-avatar { width: 92px; height: 112px; }
+    .hero-avatar svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 5px 3px rgba(48,71,54,.2)); }
+    @media (max-width: 700px) { .hero-avatar { width: 82px; height: 100px; } }
+    .hero-side.hurt .hero-avatar { animation: hero-hurt .32s ease; }
+    @keyframes hero-hurt { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px) rotate(-7deg); filter: drop-shadow(0 0 8px #f18169); } 70% { transform: translateX(7px) rotate(6deg); } }
+    .hero-health { display: flex; align-items: center; gap: 5px; margin-top: 3px; color: #a64f43; font-size: 9px; font-weight: 800; }
+    .hero-health-track { width: 52px; height: 6px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.7); }
+    .hero-health-fill { display: block; width: 100%; height: 100%; border-radius: inherit; background: #e87562; transition: width .25s ease; }
+    .game-over { position: absolute; z-index: 8; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 20px; background: rgba(34,54,46,.76); color: #fffefa; text-align: center; }
+    .game-over h2 { font-size: 26px; }
+    .game-over p { font-size: 13px; font-weight: 700; }
+    .game-over button { padding: 10px 20px; border: 0; border-radius: 10px; background: #f3cf72; color: #344d40; font-weight: 800; cursor: pointer; }
+    .game-over button:hover { background: #ffe28c; }
+    .defeat-stars { position: absolute; z-index: 2; inset: 4px; color: #f3c957; font-size: 22px; font-weight: 800; opacity: 0; pointer-events: none; }
+    .defeat-stars span { position: absolute; animation: defeat-sparkle .7s ease-out both; }
+    .defeat-stars span:nth-child(1) { top: 2px; left: 3px; }
+    .defeat-stars span:nth-child(2) { top: 18px; right: 0; animation-delay: .08s; }
+    .defeat-stars span:nth-child(3) { right: 12px; bottom: 4px; animation-delay: .16s; }
+    .slash-effect { position: absolute; z-index: 3; inset: -10px; opacity: 0; pointer-events: none; }
+    .slash-effect svg { width: 100%; height: 100%; overflow: visible; }
+    .slash-effect.show { animation: slash-flash .42s ease-out both; }
+    .slash-edge { fill: none; stroke: #2f7862; stroke-width: 13; stroke-linecap: round; }
+    .slash-light { fill: none; stroke: #fffefa; stroke-width: 5; stroke-linecap: round; }
+    .slash-spark { fill: #ffe28c; stroke: #fffefa; stroke-width: 1.5; }
+    .magic-effect { position: absolute; z-index: 4; top: 20%; left: 47%; width: 150px; height: 130px; opacity: 0; pointer-events: none; }
+    .magic-effect svg { width: 100%; height: 100%; overflow: visible; }
+    .magic-effect.show { animation: magic-cast .8s cubic-bezier(.2,.7,.25,1) both; }
+    .magic-ring { fill: none; stroke: #6ac9c1; stroke-width: 2; stroke-dasharray: 4 5; transform-origin: 80px 60px; }
+    .magic-core { fill: url(#magic-gradient); stroke: #fffefa; stroke-width: 2; }
+    .magic-trail { fill: none; stroke: #9af4e5; stroke-width: 8; stroke-linecap: round; opacity: .7; }
+    .magic-effect.strong .magic-ring { stroke: #b497f2; stroke-width: 3; }
+    .magic-effect.strong .magic-trail { stroke: #c8a9ff; }
+    .magic-effect.legendary .magic-ring { stroke: #ffd26b; stroke-width: 3.5; }
+    .magic-effect.legendary .magic-trail { stroke: #ffe68f; }
+    @keyframes magic-cast { 0% { opacity: 0; transform: translate(35px, 8px) scale(.45) rotate(-18deg); } 18% { opacity: 1; } 72% { opacity: 1; transform: translate(-34px, -5px) scale(1.05) rotate(8deg); } 100% { opacity: 0; transform: translate(-53px, -12px) scale(1.25) rotate(18deg); } }
+    @keyframes magic-spin { to { transform: rotate(360deg); } }
+    .magic-effect.show .magic-ring { animation: magic-spin .8s linear both; }
+    @keyframes slash-flash { 0% { opacity: 0; transform: translate(-13px, 12px) rotate(-8deg) scale(.55); } 20% { opacity: 1; } 55% { opacity: 1; transform: translate(0, 0) rotate(0) scale(1.05); } 100% { opacity: 0; transform: translate(8px, -7px) rotate(5deg) scale(1.12); } }
+    .monster-wrap.defeated .monster-art { animation: defeat .65s ease-in forwards; }
+    @keyframes defeat { 0% { transform: rotate(0) scale(1); opacity: 1; } 55% { transform: rotate(-18deg) scale(.9); opacity: 1; } 100% { transform: rotate(78deg) scale(.7); opacity: .25; } }
+    @keyframes defeat-sparkle { 0% { opacity: 0; transform: scale(.3) rotate(0); } 35% { opacity: 1; transform: scale(1.2) rotate(35deg); } 100% { opacity: 0; transform: scale(.8) rotate(90deg); } }
+    @media (prefers-reduced-motion: reduce) { .defeat-stars span { animation-duration: .01ms; } .monster-wrap.defeated .monster-art { animation-duration: .01ms; } .magic-effect.show, .magic-effect.show .magic-ring { animation-duration: .01ms; } }
+    @media (min-width: 1000px) and (max-height: 700px) {
+      .app-shell { padding-bottom: 8px; }
+      .topbar { height: 58px; }
+      .layout { padding-top: 10px; }
+      .game-column { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; row-gap: 0; grid-template-areas: "journey journey" "battle typing" "progress progress"; }
+      .journey-bar { grid-area: journey; margin-bottom: 9px; }
+      .battle-scene { grid-area: battle; min-height: 0; height: clamp(220px, calc(100vh - 350px), 250px); }
+      .battlefield { inset: 42px 5% 31px; }
+      .enemy-side { width: 155px; }
+      .monster-wrap { transform: scale(.88); }
+      .hero-avatar { width: 76px; height: 94px; }
+      .typing-panel { grid-area: typing; min-width: 0; margin-top: 0; padding: 13px 15px 11px; }
+      .word-display { min-height: 60px; padding: 5px 0; }
+      .word-kana { font-size: 30px; }
+      .input-row { min-height: 42px; }
+      .keyboard-guide { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "title tip" "rows rows" "finger bottom"; gap: 6px 8px; margin-top: 8px; padding: 8px 7px 7px; }
+      .keyboard-title { grid-area: title; align-self: center; }
+      .keyboard-rows { grid-area: rows; }
+      .finger-tip { grid-area: tip; align-self: center; }
+      .finger-guide { grid-area: finger; }
+      .keyboard-bottom { grid-area: bottom; align-self: center; }
+      .keycap { flex-basis: 27px; height: 23px; }
+      .keyboard-row { gap: 2px; }
+      .keyboard-row:nth-child(2) { padding-left: 12px; }
+      .keyboard-row:nth-child(3) { padding-left: 23px; }
+      .hand-guide { gap: 5px; }
+      .hand-illustration { width: 74px; height: 84px; }
+      .hand-guide { gap: 3px; }
+      .finger-guide-title { margin-bottom: 3px; font-size: 8px; }
+      .finger-tip { font-size: 10px; }
+      .space-key { height: 20px; }
+      .progress-section { grid-area: progress; margin-top: 8px; }
+    }
   </style>
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="ことばクエスト ホーム"><span class="brand-mark">K</span><span>ことばクエスト</span></a>
-      <div class="top-status"><span class="save-state"><span class="save-dot"></span>ぼうけんを保存中</span><button class="icon-button" id="reset-button" type="button" title="ぼうけんをリセット" aria-label="ぼうけんをリセット"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5"/></svg></button></div>
+      <div class="top-status"><span class="save-state"><span class="save-dot"></span>ぼうけんを保存中</span><button class="icon-button save-button" id="save-button" type="button" title="ぼうけんをセーブ" aria-label="ぼうけんをセーブ">セーブ</button><button class="icon-button sound-button" id="sound-button" type="button" title="効果音をオフ" aria-label="効果音をオフ" aria-pressed="true">♪</button><button class="icon-button" id="reset-button" type="button" title="ぼうけんをリセット" aria-label="ぼうけんをリセット"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5"/></svg></button></div>
     </header>
     <main class="layout">
       <section class="game-column" aria-label="タイピングぼうけん">
         <div class="journey-bar"><div><span class="eyebrow">きょうのぼうけん</span><h1>ことばで たたかえ！</h1></div><div class="level-chip"><span>✦</span><span id="level-label">レベル 1</span></div></div>
         <section class="battle-scene" aria-label="バトル">
-          <div class="scene-sun"></div><div class="scene-cloud cloud-one"></div><div class="scene-cloud cloud-two"></div><div class="scene-ground"></div>
+          <div class="scene-sun" aria-hidden="true"></div><div class="scene-moon" aria-hidden="true"></div><div class="scene-stars" aria-hidden="true"><span>✦</span><span>✧</span><span>✦</span><span>⋆</span><span>✧</span></div><div class="scene-cloud cloud-one"></div><div class="scene-cloud cloud-two"></div><div class="scene-ground"></div>
           <div class="battle-topline"><span class="stage-label"><span class="stage-dot"></span><span id="stage-label">みどりの草原</span></span><span class="timer-pill" id="timer-pill" hidden><span>◷</span><span id="timer-label">32</span></span></div>
           <div class="battlefield">
-            <div class="enemy-side"><div class="enemy-info"><span class="enemy-name" id="enemy-name">もこもこウルフ</span><span class="enemy-level" id="enemy-level">Lv. 1</span></div><div class="health-track"><span id="enemy-health"></span></div><div class="monster-wrap" id="monster-wrap"><div class="monster-shadow"></div><div class="monster-art" id="monster-art"></div></div></div>
+            <div class="enemy-side"><div class="enemy-info"><span class="enemy-name" id="enemy-name">もこもこウルフ</span><span class="enemy-level" id="enemy-level">Lv. 1</span></div><div class="health-track"><span id="enemy-health"></span></div><div class="monster-wrap" id="monster-wrap"><div class="monster-shadow"></div><div class="monster-art" id="monster-art"></div><div class="slash-effect" id="slash-effect" aria-hidden="true"><svg viewBox="0 0 120 120"><path class="slash-edge" d="M17 99Q43 57 103 17"/><path class="slash-light" d="M17 99Q43 57 103 17"/><path class="slash-spark" d="m43 52 3 8 8 3-8 3-3 8-3-8-8-3 8-3Zm37-26 2 6 6 2-6 2-2 6-2-6-6-2 6-2Z"/></svg></div><div class="defeat-stars" aria-hidden="true"><span>✦</span><span>✧</span><span>✦</span></div></div></div>
+            <div class="magic-effect" id="magic-effect" aria-hidden="true"><svg viewBox="0 0 160 120"><defs><radialGradient id="magic-gradient"><stop stop-color="#fffefa"/><stop offset=".45" stop-color="#a8f4dc"/><stop offset="1" stop-color="#58bcb1"/></radialGradient></defs><circle class="magic-ring" cx="80" cy="60" r="39"/><circle class="magic-ring" cx="80" cy="60" r="29" stroke-dasharray="2 7"/><path class="magic-trail" d="M142 60H101"/><circle class="magic-core" cx="98" cy="60" r="17"/><path d="m98 34 3 10 10 3-10 3-3 10-3-10-10-3 10-3Z" fill="#fffefa"/><circle cx="68" cy="35" r="3" fill="#fffefa"/><circle cx="55" cy="77" r="4" fill="#ffe28c"/><circle cx="121" cy="85" r="3" fill="#fffefa"/></svg></div>
             <div class="battle-effects" id="battle-effects" aria-live="polite"></div>
-            <div class="hero-side"><div class="hero-avatar" aria-hidden="true"><span class="hero-helmet"></span><span class="hero-face">☺</span><span class="hero-cape"></span></div><div class="hero-caption"><span class="hero-name">ぼうけんしゃ</span><span class="hero-level" id="hero-level">Lv. 1</span></div></div>
+            <div class="hero-side" id="hero-side"><div class="hero-avatar" aria-hidden="true"><svg class="hero-art" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="49" cy="111" rx="28" ry="5" fill="#648657" opacity=".28"/>
+              <path d="M37 48 24 57l5 39q19 12 41 0l6-40-15-9Z" fill="#d95f4c" stroke="#344d40" stroke-width="3" stroke-linejoin="round"/>
+              <path d="m31 89-3 15q8 6 18 2l2-15m10 0 3 15q8 6 17 1l-5-17" fill="#52756a" stroke="#344d40" stroke-width="3" stroke-linejoin="round"/>
+              <path d="m28 101-5 7q-1 4 4 5h19l2-5-4-6q-8 4-16-1m27 1-2 6q1 5 5 5h18q4-2 1-6l-7-6q-8 4-15 1" fill="#46544c" stroke="#344d40" stroke-width="3" stroke-linejoin="round"/>
+              <path d="m76 63 13-38 5 1-7 40-7 12-6-3Z" fill="#d9e8e2" stroke="#344d40" stroke-width="3" stroke-linejoin="round"/>
+              <path d="m77 70 13-1 1 5-13 3m4-8-4-8 5-2 5 9" fill="#e5b969" stroke="#344d40" stroke-width="2.5" stroke-linejoin="round"/>
+              <path d="m35 48-12 8-7 22q3 7 9 2l13-17m25-15 13 7 5 16q-2 7-8 3l-12-10" fill="#78ac84" stroke="#344d40" stroke-width="3" stroke-linejoin="round"/>
+              <path d="m35 47-8 13 12 11 10-8 10 8 12-11-8-13q-13-7-28 0Z" fill="#eaf1dd" stroke="#344d40" stroke-width="3" stroke-linejoin="round"/>
+              <path d="m39 51 10 6 10-6 4 17-14 8-14-8Z" fill="#82b3a0" stroke="#344d40" stroke-width="3" stroke-linejoin="round"/>
+              <path d="m48 60 2 7 5-4-4-4" fill="#f3cf75" stroke="#344d40" stroke-width="1.5"/>
+              <path d="m36 29 1 19q13 13 27 0l1-20Z" fill="#ffd39e" stroke="#344d40" stroke-width="3" stroke-linejoin="round"/>
+              <path d="M37 38q6 5 11 1m7 0q5 4 10-1" fill="none" stroke="#344d40" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="m47 45 4 2 4-2" fill="none" stroke="#a95c50" stroke-width="2" stroke-linecap="round"/>
+              <path d="M30 31q0-22 20-23 21 1 22 23l-8 8-4-11-11 3-12-4-3 13Z" fill="#77a98d" stroke="#344d40" stroke-width="3" stroke-linejoin="round"/>
+              <path d="m31 28 19-16 20 15-12-4-8-6-10 9Z" fill="#a5d1a2"/>
+              <path d="m48 7 3-6 4 6" fill="#f0c968" stroke="#344d40" stroke-width="2" stroke-linejoin="round"/>
+              <path d="m31 31-5 5 10 2m31-7 5 5-9 2" fill="#e5b969" stroke="#344d40" stroke-width="2" stroke-linejoin="round"/>
+              <path d="m24 72 8 3-3 9-9-3m50-8 8 1 2 8-9 2" fill="#ffd39e" stroke="#344d40" stroke-width="2.5" stroke-linejoin="round"/>
+            </svg></div><div class="hero-caption"><span class="hero-name">ぼうけんしゃ</span><span class="hero-level" id="hero-level">Lv. 1</span></div><div class="hero-health" aria-label="冒険者のHP"><span>HP</span><span class="hero-health-track"><span class="hero-health-fill" id="hero-health"></span></span><span id="hero-hp-label">3 / 3</span></div></div>
           </div>
+          <div class="game-over" id="game-over" role="dialog" aria-modal="true" aria-labelledby="game-over-title" hidden><h2 id="game-over-title">ゲームオーバー</h2><p>HPがなくなっちゃった！</p><button id="retry-button" type="button">もういちど たたかう</button></div>
           <p class="battle-message" id="battle-message" aria-live="polite">ことばを うって こうげきしよう！</p>
         </section>
         <section class="typing-panel" aria-labelledby="typing-heading">
@@ -40,7 +181,7 @@
           <div class="word-display" aria-live="polite"><span class="word-kana" id="word-kana">ねこ</span><span class="word-roman" id="word-roman">neko</span></div>
           <label class="sr-only" for="typing-input">ローマ字でことばを入力</label>
           <div class="input-row" id="input-row"><span class="input-prefix">Aa</span><input id="typing-input" type="text" inputmode="latin" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ここにローマ字を入力" aria-describedby="typing-feedback"><span class="input-feedback" id="typing-feedback" aria-live="polite">Enterキーでも こうげき！</span></div>
-          <div class="keyboard-guide" id="keyboard-guide" aria-label="キーボードのヒント"></div>
+          <div class="keyboard-guide" id="keyboard-guide" aria-label="キーボードと指づかい"></div>
         </section>
         <section class="progress-section" aria-label="レベルアップまで"><div class="progress-copy"><span>つぎのレベルまで</span><strong id="xp-label">0 / 100 XP</strong></div><div class="progress-track"><span id="xp-bar"></span></div></section>
       </section>
