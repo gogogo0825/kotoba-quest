@@ -197,7 +197,7 @@
           <div class="input-row" id="input-row"><span class="input-prefix">Aa</span><input id="typing-input" type="text" inputmode="latin" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ここにローマ字を入力" aria-describedby="typing-feedback"><span class="input-feedback" id="typing-feedback" aria-live="polite">Enterキーでも こうげき！</span></div>
           <div class="keyboard-guide" id="keyboard-guide" aria-label="キーボードと指づかい"></div>
         </section>
-        <section class="progress-section" aria-label="レベルアップまで"><div class="progress-copy"><span>つぎのレベルまで</span><strong id="xp-label">0 / 100 XP</strong></div><div class="progress-track"><span id="xp-bar"></span></div></section>
+        <section class="progress-section" aria-label="レベルアップまで"><div class="progress-copy"><span>つぎのレベルまで</span><strong><span id="xp-label">XP 0 / 100</span><span class="xp-percent" id="xp-percent">0%</span></strong></div><div class="progress-track"><span id="xp-bar"></span></div></section>
       </section>
       <aside class="side-column" aria-label="ぼうけんのじょうほう">
         <section class="side-panel collection-panel"><div class="panel-heading"><div><span class="eyebrow">なかま</span><h2>モンスターずかん</h2></div><span class="collection-count" id="collection-count">0</span></div><div class="collection-list" id="collection-list"></div><p class="empty-note" id="empty-note">モンスターを たおして<br>なかまにしよう！</p></section>
@@ -221,6 +221,7 @@
         <button class="help-start" id="help-start" type="button">ぼうけんを はじめる</button>
       </div>
     </div>
+    <div class="levelup-banner" id="levelup-banner" role="status" aria-live="polite"><span class="levelup-emoji">🎉</span><strong>レベルアップ！</strong><span id="levelup-text"></span></div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </div>
   <script src="app.js"></script>

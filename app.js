@@ -31,6 +31,29 @@ const creatures=[
   {name:'うみほたるゼリー',form:'jellyfish',color:'#6c9ac0',light:'#b2d8e6',accent:'#f4d987',stage:'深海の入り江'},
   {name:'たてがみライオン',form:'lion',color:'#bc8145',light:'#edc17a',accent:'#f2dc9b',stage:'ひだまりの平原'},
 ];
+// ===== レベル設定 =====
+const XP_PER_CORRECT=10; // 正解1回で得るXP
+const LEVEL_XP_TABLE=[0,100,250,500,800,1200]; // 添字+1がレベル。値はそのレベルに必要な総XP
+const XP_STEP_AFTER_TABLE=500; // 表の後は1レベルごとに必要XPを+500
+
+// そのレベルに到達するために必要な総XP
+function xpForLevel(level){
+  if(level<=1)return 0;
+  const last=LEVEL_XP_TABLE.length;
+  if(level<=last)return LEVEL_XP_TABLE[level-1];
+  return LEVEL_XP_TABLE[last-1]+(level-last)*XP_STEP_AFTER_TABLE;
+}
+// 総XPからレベルを計算
+function levelFromXp(xp){
+  let level=1;
+  while(xp>=xpForLevel(level+1))level++;
+  return level;
+}
+// 現在レベル内の進み具合（バー表示用）
+function xpProgress(xp,level){
+  const base=xpForLevel(level),needed=xpForLevel(level+1)-base,current=xp-base;
+  return {current,needed,percent:Math.floor(current/needed*100)};
+}
 const storageKey='kotoba-quest-save-v1';
 const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,heroHp:3,gameOver:false};
 const maxHeroHp=3;
@@ -70,7 +93,8 @@ function load(){
     const saved=JSON.parse(localStorage.getItem(storageKey));
     if(!saved||typeof saved!=='object')return {...initial,recruited:[]};
     const savedHeroHp=Number(saved.heroHp??maxHeroHp);
-    return {...initial,...saved,level:Math.max(1,Number(saved.level)||1),xp:Math.max(0,Number(saved.xp)||0),recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:Number.isFinite(savedHeroHp)?Math.max(0,Math.min(maxHeroHp,savedHeroHp)):maxHeroHp,gameOver:saved.gameOver===true};
+    const savedXp=Math.max(0,Number(saved.xp)||0);
+    return {...initial,...saved,level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:Number.isFinite(savedHeroHp)?Math.max(0,Math.min(maxHeroHp,savedHeroHp)):maxHeroHp,gameOver:saved.gameOver===true};
   }catch{return {...initial,recruited:[]};}
 }
 function save(wordIndex=state.wordIndex){
@@ -234,7 +258,7 @@ function render(){
   el('level-label').textContent=`レベル ${state.level}`;el('hero-level').textContent=`Lv. ${state.level}`;el('words-typed').textContent=state.wordsTyped;el('correct-count').textContent=state.correct;
   el('hero-health').style.width=`${state.heroHp/maxHeroHp*100}%`;el('hero-hp-label').textContent=`${state.heroHp} / ${maxHeroHp}`;
   input.disabled=state.gameOver;el('game-over').hidden=!state.gameOver;
-  const xp=state.xp%100;el('xp-label').textContent=`${xp} / 100 XP`;el('xp-bar').style.width=`${xp}%`;
+  renderXp();
   el('word-number').textContent=state.wordIndex%3+1;el('category-label').textContent=current.category;el('word-kana').textContent=current.kana;
   romanHint();renderKeyboard();renderMonster();renderCollection();
   if(state.level>=3&&!timedOut&&!state.gameOver)startTimer();else{stopTimer();el('timer-pill').hidden=true;}
@@ -245,10 +269,25 @@ function nextWord(){
   el('typing-feedback').textContent=timerLimit()?'じかん内に うってみよう':'Enterキーでも こうげき！';el('typing-feedback').classList.remove('error');el('battle-message').textContent='ことばを うって こうげきしよう！';
   render();startTimer();input.focus();
 }
+// 正解時のXP加算。レベルアップしたら true を返す
 function gainXp(){
-  const before=state.level;state.xp+=20;state.level=Math.floor(state.xp/100)+1;
-  if(state.level>before){el('battle-message').textContent=`レベルアップ！ レベル ${state.level} になったよ！`;toast(`やったね！ レベル ${state.level} にアップ！`);return true;}
+  const before=state.level;state.xp+=XP_PER_CORRECT;state.level=levelFromXp(state.xp);
+  if(state.level>before){showLevelUp(state.level);return true;}
   return false;
+}
+// レベルアップ演出（再生のたびにアニメーションをやり直す）
+function showLevelUp(level){
+  el('levelup-text').textContent=`Lv.${level} になった！`;
+  const banner=el('levelup-banner');
+  banner.classList.remove('show');void banner.offsetWidth;banner.classList.add('show');
+  el('battle-message').textContent=`レベルアップ！ Lv.${level} になったよ！`;
+}
+// 総XP表示と、現在レベル内の進み具合を示すバー
+function renderXp(){
+  const {needed,percent}=xpProgress(state.xp,state.level);
+  el('xp-label').textContent=`XP ${state.xp} / ${xpForLevel(state.level)+needed}`;
+  el('xp-percent').textContent=`${percent}%`;
+  el('xp-bar').style.width=`${percent}%`;
 }
 function recruit(){
   const c=creatureAt();state.recruited.push({creatureIndex:state.monsterIndex%creatures.length,level:state.level});state.monsterIndex++;state.monsterHp=3;
