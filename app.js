@@ -59,13 +59,18 @@ function xpProgress(xp,level){
   return {current,needed,percent:Math.floor(current/needed*100)};
 }
 const storageKey='kotoba-quest-save-v1';
-const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,badges:[],combo:0,noMiss:0,dailyStreak:0,lastPlayDate:'',coins:0,bossesDefeated:[],bossFight:null,dailyDate:'',dailyCount:0,dailyDone:false,stampDays:0,wordStats:{}};
+const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,badges:[],combo:0,noMiss:0,dailyStreak:0,lastPlayDate:'',coins:0,bossesDefeated:[],bossFight:null,dailyDate:'',dailyCount:0,dailyDone:false,stampDays:0,wordStats:{},areaId:'forest',areaProgress:{}};
 // 配列を共有しない新しいセーブデータ。keep に渡した項目は引き継ぐ
-function newState(keep={}){return {...initial,recruited:[],badges:[],bossesDefeated:[],wordStats:{},village:emptyVillage(),...keep};}
+function newState(keep={}){
+  const s={...initial,recruited:[],badges:[],bossesDefeated:[],wordStats:{},village:emptyVillage(),...keep};
+  return {...s,...normalizeAreaState(s.areaId,s.areaProgress,s.bossesDefeated)};
+}
 const el=(id)=>document.getElementById(id);
 const input=el('typing-input');
 let state=load();
-let current=pickNextWord(words,state.wordStats,state.level,'');
+// いまのエリアで出すことばから選ぶ
+function pickWord(prevKana){return pickNextWord(areaWords(words,getArea(state.areaId)),state.wordStats,state.level,prevKana);}
+let current=pickWord('');
 let timer=null,secondsLeft=0,timedOut=false,toastTimer=null;
 let wordHadMiss=false; // いま打っていることばでミスをしたか（ミスなし連続の判定用）
 let soundEnabled=true,audioContext=null;
@@ -105,7 +110,7 @@ function load(){
     const knownIds=BADGE_DEFS.map(b=>b.id);
     const badges=[...new Set(Array.isArray(saved.badges)?saved.badges:[])].filter(id=>knownIds.includes(id));
     const bossesDefeated=[...new Set(Array.isArray(saved.bossesDefeated)?saved.bossesDefeated:[])].filter(id=>getBoss(id));
-    return {...initial,...saved,bossesDefeated,bossFight:normalizeBossFight(saved.bossFight,bossesDefeated),level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:undefined,gameOver:undefined,badges,combo:count(saved.combo),noMiss:count(saved.noMiss),dailyStreak:count(saved.dailyStreak),lastPlayDate:typeof saved.lastPlayDate==='string'?saved.lastPlayDate:'',dailyDate:typeof saved.dailyDate==='string'?saved.dailyDate:'',dailyCount:count(saved.dailyCount),dailyDone:saved.dailyDone===true,stampDays:count(saved.stampDays),wordStats:normalizeWordStats(saved.wordStats,words),coins:count(saved.coins),village:normalizeVillage(saved.village)};
+    return {...initial,...saved,bossesDefeated,bossFight:normalizeBossFight(saved.bossFight,bossesDefeated),level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:undefined,gameOver:undefined,badges,combo:count(saved.combo),noMiss:count(saved.noMiss),dailyStreak:count(saved.dailyStreak),lastPlayDate:typeof saved.lastPlayDate==='string'?saved.lastPlayDate:'',dailyDate:typeof saved.dailyDate==='string'?saved.dailyDate:'',dailyCount:count(saved.dailyCount),dailyDone:saved.dailyDone===true,stampDays:count(saved.stampDays),wordStats:normalizeWordStats(saved.wordStats,words),coins:count(saved.coins),village:normalizeVillage(saved.village),...normalizeAreaState(saved.areaId,saved.areaProgress,bossesDefeated)};
   }catch{return newState();}
 }
 function save(wordIndex=state.wordIndex){
@@ -252,13 +257,13 @@ function renderCollection(){
 function render(){
   el('level-label').textContent=`レベル ${state.level}`;el('hero-level').textContent=`Lv. ${state.level}`;el('words-typed').textContent=state.wordsTyped;el('correct-count').textContent=state.correct;
   input.disabled=false;
-  renderXp();renderCoins();renderDaily();
+  renderXp();renderCoins();renderDaily();renderAreaBar();
   el('word-number').textContent=state.wordIndex%3+1;el('category-label').textContent=current.category;el('word-kana').textContent=current.kana;el('word-stars').textContent=starText((state.wordStats[current.kana]||{best:0}).best);
   romanHint();renderKeyboard();renderMonster();renderCollection();
   if(state.level>=3&&!timedOut&&el('boss-screen').hidden)startTimer();else{stopTimer();el('timer-pill').hidden=true;}
 }
 function nextWord(){
-  state.wordIndex++;current=pickNextWord(words,state.wordStats,state.level,current.kana);input.value='';timedOut=false;
+  state.wordIndex++;current=pickWord(current.kana);input.value='';timedOut=false;
   el('typing-feedback').textContent=timerLimit()?'じかん内に うってみよう':'Enterキーでも こうげき！';el('typing-feedback').classList.remove('error');el('battle-message').textContent='ことばを うって こうげきしよう！';
   render();startTimer();input.focus();
 }
@@ -428,7 +433,7 @@ let bossLaterThisSession=false; // 「あとでたたかう」を選んだら、
 // 挑戦待ちのボスがいれば専用画面を開く（レベルアップ後・読み込み後に呼ぶ）
 function maybeStartBoss(){
   if(!el('boss-screen').hidden||bossLaterThisSession)return;
-  const boss=state.bossFight?getBoss(state.bossFight.id):findPendingBoss(state.level,state.bossesDefeated);
+  const boss=state.bossFight?getBoss(state.bossFight.id):areaBossReady(state)?getBoss(getArea(state.areaId).bossId):null;
   if(!boss)return;
   if(!state.bossFight)state.bossFight={id:boss.id,hp:boss.hp};
   stopTimer();el('timer-pill').hidden=true;save();openBossScreen(boss);
@@ -440,7 +445,7 @@ function openBossScreen(boss){
   playSound('recruit');nextBossWord();
 }
 function nextBossWord(){
-  bossWord=pickNextWord(words,state.wordStats,state.level,bossWord&&bossWord.kana);
+  bossWord=pickWord(bossWord&&bossWord.kana);
   el('boss-kana').textContent=bossWord.kana;el('boss-romaji').textContent=bossWord.romaji;
   el('boss-input').value='';renderBossHp();el('boss-input').focus();
 }
@@ -475,6 +480,8 @@ function attackBoss(){
 function defeatBoss(boss){
   if(!state.bossesDefeated.includes(boss.id))state.bossesDefeated.push(boss.id);
   state.bossFight=null;
+  const cleared=getArea(state.areaId),next=cleared&&nextArea(cleared);
+  if(next&&cleared.bossId===boss.id){state.areaId=next.id;toast(`${next.icon} ${next.name}が ひらいたよ！`);}
   const before=state.level;state.xp+=BOSS_REWARD.xp;state.level=levelFromXp(state.xp);
   state.coins+=BOSS_REWARD.coins+(state.level>before?COIN_LEVELUP_BONUS:0);
   checkBadges();save();render();renderCoins();
@@ -492,11 +499,44 @@ el('boss-victory-close').addEventListener('click',closeBossScreen);
 el('boss-later').addEventListener('click',()=>{
   bossLaterThisSession=true;el('boss-screen').hidden=true;render();input.focus();
 });
+// ===== ワールドマップ（定義と判定は areas.js） =====
+// 画面上の「いまのエリア」バー：名前・ボスまでのゲージ
+function renderAreaBar(){
+  const area=getArea(state.areaId),cleared=state.bossesDefeated.includes(area.bossId),n=state.areaProgress[area.id];
+  el('area-bar-name').textContent=`${area.icon} ${area.name}`;
+  el('area-bar-fill').style.width=`${n/AREA_GAUGE*100}%`;
+  el('area-bar-count').textContent=cleared?'クリア✅':n>=AREA_GAUGE?'ボス！':`${n}/${AREA_GAUGE}`;
+  el('area-bar').classList.toggle('ready',areaBossReady(state));
+}
+function renderMap(){
+  el('map-list').innerHTML=AREA_DEFS.map(a=>{
+    const open=areaUnlocked(a,state.bossesDefeated),boss=getBoss(a.bossId),beaten=state.bossesDefeated.includes(a.bossId),here=a.id===state.areaId;
+    if(!open)return `<li class="map-item locked">🔒 ？？？<small>まえのエリアの ボスを たおすと ひらくよ</small></li>`;
+    const gauge=beaten?'ボス たおした ✅':`ボスまで ${state.areaProgress[a.id]} / ${AREA_GAUGE}`;
+    const action=here?(areaBossReady(state)&&!beaten?`<button class="fight" data-act="boss" type="button">${boss.icon} ボスに ちょうせん！</button>`:'<small>📍 いま ここにいるよ</small>'):`<button data-act="go" data-id="${a.id}" type="button">ここへ いく</button>`;
+    return `<li class="map-item ${here?'here':''}"><span>${a.icon} ${a.name}</span><small>${boss.icon} ${boss.name}　${gauge}</small>${action}</li>`;
+  }).join('');
+}
+function openMap(){renderMap();el('map-dialog').hidden=false;el('map-close').focus();}
+function closeMap(){el('map-dialog').hidden=true;if(!input.disabled)input.focus();}
+el('area-bar').addEventListener('click',openMap);
+el('map-close').addEventListener('click',closeMap);
+el('map-dialog').addEventListener('click',event=>{
+  if(event.target===el('map-dialog')){closeMap();return;}
+  const button=event.target.closest('button[data-act]');if(!button)return;
+  if(button.dataset.act==='go'){
+    const area=getArea(button.dataset.id);
+    if(!area||!areaUnlocked(area,state.bossesDefeated))return;
+    state.areaId=area.id;current=pickWord('');input.value='';save();closeMap();render();toast(`${area.icon} ${area.name}に きたよ！`);
+  }else{closeMap();bossLaterThisSession=false;maybeStartBoss();}
+});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!el('map-dialog').hidden)closeMap();});
+
 // ボスずかん
 function renderBossDex(){
   el('boss-dex-list').innerHTML=BOSS_DEFS.map(b=>{
     const done=state.bossesDefeated.includes(b.id);
-    return `<li class="${done?'':'locked'}">${done?'✅':'🔒'} ${done?`${b.icon} ${b.name}`:'？？？'}<small>　Lv.${b.level}でとうじょう</small></li>`;
+    return `<li class="${done?'':'locked'}">${done?'✅':'🔒'} ${done?`${b.icon} ${b.name}`:'？？？'}<small>　${(AREA_DEFS.find(a=>a.bossId===b.id)||{name:''}).name}</small></li>`;
   }).join('');
 }
 function openBossDex(){renderBossDex();renderWordDex();showDexTab('word');el('boss-dex-dialog').hidden=false;el('boss-dex-close').focus();}
@@ -532,7 +572,7 @@ function recruit(){
 function submit(){
   if(!isRomajiComplete(current,input.value))return;stopTimer();state.wordsTyped++;state.correct++;state.monsterHp--;
   playSound('attack');
-  const leveled=gainXp();recordCorrectWord();rewardCoins(leveled);checkBadges();el('enemy-health').style.width=`${Math.max(0,state.monsterHp/3*100)}%`;
+  const leveled=gainXp();const bossReady=addAreaProgress(state);recordCorrectWord();rewardCoins(leveled);checkBadges();el('enemy-health').style.width=`${Math.max(0,state.monsterHp/3*100)}%`;
   el('monster-wrap').classList.remove('hit');void el('monster-wrap').offsetWidth;el('monster-wrap').classList.add('hit');
   el('battle-effects').textContent=state.monsterHp<=0?'たおした！':state.level>=3?'まほう こうげき！':'こうげき！';el('battle-effects').classList.remove('show');void el('battle-effects').offsetWidth;el('battle-effects').classList.add('show');
   el('typing-feedback').textContent='せいかい！ こうげき！';el('typing-feedback').classList.remove('error');el('battle-message').textContent=state.monsterHp<=0?'やった！ モンスターを たおした！':'いいね！ モンスターに あたったよ！';
@@ -545,7 +585,7 @@ function submit(){
   }
   if(recruited){el('monster-wrap').classList.add('defeated');setTimeout(recruit,750);}
   setTimeout(nextWord,leveled||recruited?1300:580);
-  if(leveled){bossLaterThisSession=false;setTimeout(maybeStartBoss,1400);} // レベルアップ後、挑戦できるボスがいれば出現
+  if(bossReady){bossLaterThisSession=false;toast('ボスが あらわれた！');setTimeout(maybeStartBoss,leveled||recruited?1400:700);} // エリアのゲージが満タンになったらボス出現
 }
 input.addEventListener('input',event=>{
   const typed=input.value.toLowerCase();
@@ -565,7 +605,7 @@ el('reset-button').addEventListener('click',()=>{
   if(!confirm('レベルやなかまを さいしょからに もどしますか？'))return;
   closeSettings();
   // バッジ・連続プレイ日数・コイン・村・ボスずかん・きょうのぼうけんは、冒険をやり直しても残す
-  stopTimer();state=newState({badges:state.badges,bossesDefeated:state.bossesDefeated,dailyStreak:state.dailyStreak,lastPlayDate:state.lastPlayDate,coins:state.coins,village:state.village,dailyDate:state.dailyDate,dailyCount:state.dailyCount,dailyDone:state.dailyDone,stampDays:state.stampDays,wordStats:state.wordStats});current=pickNextWord(words,state.wordStats,state.level,'');wordHadMiss=false;input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
+  stopTimer();state=newState({badges:state.badges,bossesDefeated:state.bossesDefeated,dailyStreak:state.dailyStreak,lastPlayDate:state.lastPlayDate,coins:state.coins,village:state.village,dailyDate:state.dailyDate,dailyCount:state.dailyCount,dailyDone:state.dailyDone,stampDays:state.stampDays,wordStats:state.wordStats,areaId:state.areaId,areaProgress:state.areaProgress});current=pickWord('');wordHadMiss=false;input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
 });
 // せってい画面（あそびかた・おと・リセット）
 function openSettings(){el('settings-dialog').hidden=false;el('settings-close').focus();}
