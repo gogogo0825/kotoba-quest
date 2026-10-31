@@ -601,10 +601,10 @@ input.addEventListener('keydown',event=>{if(event.key==='Enter'&&isRomajiComplet
 input.addEventListener('keydown',event=>{if(event.key.length===1&&!event.ctrlKey&&!event.metaKey&&!event.altKey)playSound('key');});
 el('sound-button').addEventListener('click',()=>{soundEnabled=!soundEnabled;updateSoundButton();});
 el('reset-button').addEventListener('click',()=>{
-  if(!confirm('レベルやなかまを さいしょからに もどしますか？'))return;
+  if(!confirm('レベル・コイン・むら・バッジなど ぜんぶ さいしょからに もどしますか？'))return;
   closeSettings();
-  // バッジ・連続プレイ日数・コイン・村・ボスずかん・きょうのぼうけんは、冒険をやり直しても残す
-  stopTimer();state=newState({badges:state.badges,bossesDefeated:state.bossesDefeated,dailyStreak:state.dailyStreak,lastPlayDate:state.lastPlayDate,coins:state.coins,village:state.village,dailyDate:state.dailyDate,dailyCount:state.dailyCount,dailyDone:state.dailyDone,stampDays:state.stampDays,wordStats:state.wordStats,areaId:state.areaId,areaProgress:state.areaProgress});current=pickWord('');wordHadMiss=false;input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
+  // すべての記録を消して、はじめからにする
+  stopTimer();state=newState();current=pickWord('');wordHadMiss=false;input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
 });
 // せってい画面（あそびかた・おと・リセット）
 function openSettings(){el('settings-dialog').hidden=false;el('settings-close').focus();}
