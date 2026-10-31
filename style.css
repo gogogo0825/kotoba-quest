@@ -138,4 +138,9 @@
 .special-button{min-height:44px;padding:8px 14px;border-radius:14px;border:2px solid #e0a100;background:linear-gradient(#ffe27a,#ffb300);color:#5a3500;font:inherit;font-weight:900;cursor:pointer;animation:specialPulse 1s ease-in-out infinite}
 .special-button[hidden]{display:none}
 @keyframes specialPulse{50%{transform:scale(1.06)}}
+.word-emoji{display:block;font-size:48px;line-height:1.1;text-align:center}
+.word-emoji:empty{display:none}
+.battle-scene[data-area=river]{background:linear-gradient(180deg,#bfe6f5 0%,#d9f1fb 55%,#8cc8e6 100%)}
+.battle-scene[data-area=mountain]{background:linear-gradient(180deg,#f0c9a8 0%,#f5e0c8 55%,#b59c88 100%)}
+.battle-scene[data-area=castle]{background:linear-gradient(180deg,#8d7fb8 0%,#c3b6df 55%,#6f6590 100%)}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}

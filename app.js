@@ -237,7 +237,7 @@ function hint(time=false){
   if(time)toast('じかんは おしまい！ あとは ゆっくり うってみよう');
 }
 function renderMonster(){
-  const c=creatureAt();el('enemy-name').textContent=c.name;el('enemy-level').textContent=`Lv. ${state.level}`;el('stage-label').textContent=c.stage;
+  const c=creatureAt();el('enemy-name').textContent=c.name;el('enemy-level').textContent=`Lv. ${state.level}`;el('stage-label').textContent=`${getArea(state.areaId).icon} ${getArea(state.areaId).name}`;
   const times=['day','evening','night','morning'];
   const timeLabels={day:'昼',evening:'夕方',night:'夜',morning:'朝'};
   const time=times[state.monsterIndex%times.length];
@@ -245,7 +245,7 @@ function renderMonster(){
   scene.classList.remove(...times.map(name=>`time-${name}`));scene.classList.add(`time-${time}`);
   const habitat=['fish','penguin','turtle','crab','jellyfish'].includes(c.form)?'water':['ghost','bat','serpent','mole','golem','beetle'].includes(c.form)?'cave':'wild';
   const habitatGlow={water:'rgba(82,164,203,.2)',cave:'rgba(68,66,103,.2)',wild:'rgba(117,145,78,.16)'}[habitat];
-  scene.dataset.habitat=habitat;scene.style.boxShadow=`inset 0 0 58px ${habitatGlow}, var(--shadow)`;
+  scene.dataset.habitat=habitat;scene.dataset.area=state.areaId;scene.style.boxShadow=`inset 0 0 58px ${habitatGlow}, var(--shadow)`;
   scene.setAttribute('aria-label',`バトル：${timeLabels[time]}`);
   el('monster-wrap').classList.remove('defeated');el('slash-effect').classList.remove('show');
   el('monster-wrap').dataset.form=c.form;
@@ -260,7 +260,7 @@ function render(){
   el('level-label').textContent=`レベル ${state.level}`;el('hero-level').textContent=`Lv. ${state.level}`;el('words-typed').textContent=state.wordsTyped;el('correct-count').textContent=state.correct;
   input.disabled=false;
   renderXp();renderCoins();renderDaily();renderAreaBar();renderSpecial();
-  el('word-number').textContent=state.wordIndex%3+1;el('category-label').textContent=current.category;el('word-kana').textContent=current.kana;el('word-stars').textContent=starText((state.wordStats[current.kana]||{best:0}).best);
+  el('word-number').textContent=state.wordIndex%3+1;el('category-label').textContent=current.category;el('word-kana').textContent=current.kana;el('word-emoji').textContent=wordEmoji(current.kana);el('word-stars').textContent=starText((state.wordStats[current.kana]||{best:0}).best);
   romanHint();renderKeyboard();renderMonster();renderCollection();
   if(state.level>=3&&!timedOut&&el('boss-screen').hidden)startTimer();else{stopTimer();el('timer-pill').hidden=true;}
 }
@@ -448,7 +448,7 @@ function openBossScreen(boss){
 }
 function nextBossWord(){
   bossWord=pickWord(bossWord&&bossWord.kana);
-  el('boss-kana').textContent=bossWord.kana;el('boss-romaji').textContent=bossWord.romaji;
+  el('boss-kana').textContent=`${wordEmoji(bossWord.kana)} ${bossWord.kana}`.trim();el('boss-romaji').textContent=bossWord.romaji;
   el('boss-input').value='';renderBossHp();el('boss-input').focus();
 }
 // HPバーと「残り / 最大」を描画
@@ -583,7 +583,7 @@ function renderWordDex(){
   const categories=[...new Set(words.map(w=>w.category))];
   el('word-dex-list').innerHTML=categories.map(cat=>`<h3 class="word-dex-cat">${cat}</h3><div class="word-chips">${words.filter(w=>w.category===cat).map(w=>{
     const stat=state.wordStats[w.kana];
-    return stat?`<span class="word-chip s${stat.best}">${w.kana}<b>${starText(stat.best)}</b></span>`:'<span class="word-chip locked">？？？</span>';
+    return stat?`<span class="word-chip s${stat.best}">${wordEmoji(w.kana)} ${w.kana}<b>${starText(stat.best)}</b></span>`:'<span class="word-chip locked">？？？</span>';
   }).join('')}</div>`).join('');
 }
 function showDexTab(name){
