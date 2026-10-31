@@ -154,7 +154,7 @@
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="ことばクエスト ホーム"><span class="brand-mark">K</span><span>ことばクエスト</span></a>
-      <div class="top-status"><span class="save-state"><span class="save-dot"></span>ぼうけんを保存中</span><button class="icon-button save-button" id="help-button" type="button" title="あそびかた" aria-label="あそびかたを見る">あそびかた</button><button class="icon-button save-button" id="save-button" type="button" title="ぼうけんをセーブ" aria-label="ぼうけんをセーブ">セーブ</button><button class="icon-button sound-button" id="sound-button" type="button" title="効果音をオフ" aria-label="効果音をオフ" aria-pressed="true">♪</button><button class="icon-button" id="reset-button" type="button" title="ぼうけんをリセット" aria-label="ぼうけんをリセット"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5"/></svg></button></div>
+      <div class="top-status"><span class="save-state"><span class="save-dot"></span>ぼうけんを保存中</span><button class="icon-button save-button" id="badge-button" type="button" title="バッジをみる" aria-label="バッジコレクションを見る">バッジ</button><button class="icon-button save-button" id="help-button" type="button" title="あそびかた" aria-label="あそびかたを見る">あそびかた</button><button class="icon-button save-button" id="save-button" type="button" title="ぼうけんをセーブ" aria-label="ぼうけんをセーブ">セーブ</button><button class="icon-button sound-button" id="sound-button" type="button" title="効果音をオフ" aria-label="効果音をオフ" aria-pressed="true">♪</button><button class="icon-button" id="reset-button" type="button" title="ぼうけんをリセット" aria-label="ぼうけんをリセット"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5"/></svg></button></div>
     </header>
     <main class="layout">
       <section class="game-column" aria-label="タイピングぼうけん">
@@ -221,9 +221,20 @@
         <button class="help-start" id="help-start" type="button">ぼうけんを はじめる</button>
       </div>
     </div>
+    <div class="help-overlay" id="badge-dialog" hidden>
+      <div class="help-card badge-card" role="dialog" aria-modal="true" aria-labelledby="badge-title">
+        <button class="help-close" id="badge-close" type="button" aria-label="とじる">×</button>
+        <h2 id="badge-title">🏅 バッジコレクション</h2>
+        <div class="badge-rate-row"><strong id="badge-rate">0 / 15　たっせいりつ 0%</strong></div>
+        <div class="badge-rate-track"><span id="badge-rate-bar"></span></div>
+        <ul class="badge-grid" id="badge-grid"></ul>
+      </div>
+    </div>
+    <div class="badge-popup" id="badge-popup" role="status" aria-live="polite"><span class="badge-popup-icon" id="badge-popup-icon">🏅</span><div><strong>🏅 バッジゲット！</strong><span id="badge-popup-text"></span></div></div>
     <div class="levelup-banner" id="levelup-banner" role="status" aria-live="polite"><span class="levelup-emoji">🎉</span><strong>レベルアップ！</strong><span id="levelup-text"></span></div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </div>
+  <script src="badges.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -55,13 +55,16 @@ function xpProgress(xp,level){
   return {current,needed,percent:Math.floor(current/needed*100)};
 }
 const storageKey='kotoba-quest-save-v1';
-const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,heroHp:3,gameOver:false};
+const initial={level:1,xp:0,wordsTyped:0,correct:0,recruited:[],wordIndex:0,monsterIndex:0,monsterHp:3,heroHp:3,gameOver:false,badges:[],combo:0,noMiss:0,dailyStreak:0,lastPlayDate:''};
+// 配列を共有しない新しいセーブデータ。keep に渡した項目は引き継ぐ
+function newState(keep={}){return {...initial,recruited:[],badges:[],...keep};}
 const maxHeroHp=3;
 const el=(id)=>document.getElementById(id);
 const input=el('typing-input');
 let state=load();
 let current=words[state.wordIndex%words.length];
 let timer=null,secondsLeft=0,timedOut=false,toastTimer=null;
+let wordHadMiss=false; // いま打っていることばでミスをしたか（ミスなし連続の判定用）
 let soundEnabled=true,audioContext=null;
 
 function playTone(frequency,duration,delay=0){
@@ -80,6 +83,7 @@ function playSound(type){
   if(type==='key')playTone(560,.045);
   if(type==='attack'){playTone(300,.09);playTone(720,.13,.08);}
   if(type==='recruit'){playTone(523,.12);playTone(659,.12,.12);playTone(784,.2,.24);}
+  if(type==='badge'){playTone(784,.1);playTone(988,.1,.1);playTone(1319,.22,.2);}
 }
 function updateSoundButton(){
   const button=el('sound-button');
@@ -91,11 +95,15 @@ function updateSoundButton(){
 function load(){
   try{
     const saved=JSON.parse(localStorage.getItem(storageKey));
-    if(!saved||typeof saved!=='object')return {...initial,recruited:[]};
+    if(!saved||typeof saved!=='object')return newState();
     const savedHeroHp=Number(saved.heroHp??maxHeroHp);
     const savedXp=Math.max(0,Number(saved.xp)||0);
-    return {...initial,...saved,level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:Number.isFinite(savedHeroHp)?Math.max(0,Math.min(maxHeroHp,savedHeroHp)):maxHeroHp,gameOver:saved.gameOver===true};
-  }catch{return {...initial,recruited:[]};}
+    const count=value=>Math.max(0,Math.floor(Number(value)||0));
+    // 未知のバッジIDや重複は取り除く
+    const knownIds=BADGE_DEFS.map(b=>b.id);
+    const badges=[...new Set(Array.isArray(saved.badges)?saved.badges:[])].filter(id=>knownIds.includes(id));
+    return {...initial,...saved,level:levelFromXp(savedXp),xp:savedXp,recruited:Array.isArray(saved.recruited)?saved.recruited:[],heroHp:Number.isFinite(savedHeroHp)?Math.max(0,Math.min(maxHeroHp,savedHeroHp)):maxHeroHp,gameOver:saved.gameOver===true,badges,combo:count(saved.combo),noMiss:count(saved.noMiss),dailyStreak:count(saved.dailyStreak),lastPlayDate:typeof saved.lastPlayDate==='string'?saved.lastPlayDate:''};
+  }catch{return newState();}
 }
 function save(wordIndex=state.wordIndex){
   const status=document.querySelector('.save-state');
@@ -289,6 +297,57 @@ function renderXp(){
   el('xp-percent').textContent=`${percent}%`;
   el('xp-bar').style.width=`${percent}%`;
 }
+// ===== バッジ（定義と判定は badges.js） =====
+const badgeQueue=[]; // 取得演出の順番待ち（同時に取れても1つずつ見せる）
+let badgePopupBusy=false;
+
+// そのキーまで正しく打てた：連続コンボを加算
+function recordKey(){state.combo++;checkBadges();}
+// ミス：コンボとミスなし連続をリセット
+function recordMiss(){state.combo=0;state.noMiss=0;wordHadMiss=true;}
+// ことばを正解：ミスなし連続と連続プレイ日数を更新
+function recordCorrectWord(){
+  if(!wordHadMiss)state.noMiss++;
+  wordHadMiss=false;
+  const today=todayKey();
+  state.dailyStreak=nextDailyStreak(state.lastPlayDate,state.dailyStreak,today);
+  state.lastPlayDate=today;
+}
+// 条件を満たした新しいバッジを付与して保存し、演出を出す
+function checkBadges(){
+  const earned=findNewBadges(state);
+  if(!earned.length)return;
+  earned.forEach(badge=>state.badges.push(badge.id));
+  save();renderBadgeCollection();
+  badgeQueue.push(...earned);showNextBadgePopup();
+}
+function showNextBadgePopup(){
+  if(badgePopupBusy||!badgeQueue.length)return;
+  badgePopupBusy=true;
+  const badge=badgeQueue.shift(),popup=el('badge-popup');
+  el('badge-popup-icon').textContent=badge.icon;
+  el('badge-popup-text').textContent=`${badge.name}を獲得した！`;
+  popup.classList.remove('show');void popup.offsetWidth;popup.classList.add('show');
+  playSound('badge');
+  setTimeout(()=>{badgePopupBusy=false;showNextBadgePopup();},2600);
+}
+// バッジコレクション画面と、ボタン上の取得数を描画
+function renderBadgeCollection(){
+  const total=BADGE_DEFS.length,owned=state.badges.length,percent=Math.floor(owned/total*100);
+  el('badge-rate').textContent=`${owned} / ${total}　たっせいりつ ${percent}%`;
+  el('badge-rate-bar').style.width=`${percent}%`;
+  el('badge-grid').innerHTML=BADGE_DEFS.map(badge=>{
+    const has=state.badges.includes(badge.id);
+    return `<li class="badge-item ${has?'earned':'locked'}"><span class="badge-icon" aria-hidden="true">${has?badge.icon:'🔒'}</span><div><strong>${badge.name}</strong><p>${badge.desc}</p><span class="badge-status">${has?'ゲットずみ':'まだだよ'}</span></div></li>`;
+  }).join('');
+}
+function openBadges(){renderBadgeCollection();el('badge-dialog').hidden=false;el('badge-close').focus();}
+function closeBadges(){el('badge-dialog').hidden=true;if(!input.disabled)input.focus();}
+el('badge-button').addEventListener('click',openBadges);
+el('badge-close').addEventListener('click',closeBadges);
+el('badge-dialog').addEventListener('click',event=>{if(event.target===el('badge-dialog'))closeBadges();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!el('badge-dialog').hidden)closeBadges();});
+
 function recruit(){
   const c=creatureAt();state.recruited.push({creatureIndex:state.monsterIndex%creatures.length,level:state.level});state.monsterIndex++;state.monsterHp=3;
   playSound('recruit');
@@ -298,7 +357,7 @@ function submit(){
   if(state.gameOver)return;
   if(input.value!==current.romaji)return;stopTimer();state.wordsTyped++;state.correct++;state.monsterHp--;
   playSound('attack');
-  const leveled=gainXp();el('enemy-health').style.width=`${Math.max(0,state.monsterHp/3*100)}%`;
+  const leveled=gainXp();recordCorrectWord();checkBadges();el('enemy-health').style.width=`${Math.max(0,state.monsterHp/3*100)}%`;
   el('monster-wrap').classList.remove('hit');void el('monster-wrap').offsetWidth;el('monster-wrap').classList.add('hit');
   el('battle-effects').textContent=state.monsterHp<=0?'たおした！':state.level>=3?'まほう こうげき！':'こうげき！';el('battle-effects').classList.remove('show');void el('battle-effects').offsetWidth;el('battle-effects').classList.add('show');
   el('typing-feedback').textContent='せいかい！ こうげき！';el('typing-feedback').classList.remove('error');el('battle-message').textContent=state.monsterHp<=0?'やった！ モンスターを たおした！':'いいね！ モンスターに あたったよ！';
@@ -312,7 +371,7 @@ function submit(){
   if(recruited){el('monster-wrap').classList.add('defeated');setTimeout(recruit,750);}
   setTimeout(nextWord,leveled||recruited?1300:580);
 }
-input.addEventListener('input',()=>{
+input.addEventListener('input',event=>{
   if(state.gameOver)return;
   const typed=input.value.toLowerCase();
   if(!current.romaji.startsWith(typed)){
@@ -320,9 +379,10 @@ input.addEventListener('input',()=>{
     while(matched<typed.length&&typed[matched]===current.romaji[matched])matched++;
     input.value=current.romaji.slice(0,matched);
     hint();
+    recordMiss();
     takeDamage();
   }
-  else{input.value=typed;el('typing-feedback').textContent=timerLimit()&&!timedOut?'じかん内に うってみよう':'Enterキーでも こうげき！';el('typing-feedback').classList.remove('error');el('battle-message').textContent='そのちょうし！';if(typed.length===current.romaji.length)submit();}
+  else{input.value=typed;if(event.inputType&&event.inputType.startsWith('insert'))recordKey();el('typing-feedback').textContent=timerLimit()&&!timedOut?'じかん内に うってみよう':'Enterキーでも こうげき！';el('typing-feedback').classList.remove('error');el('battle-message').textContent='そのちょうし！';if(typed.length===current.romaji.length)submit();}
   renderKeyboard();
 });
 input.addEventListener('keydown',event=>{if(event.key==='Enter'&&input.value===current.romaji)submit();});
@@ -340,7 +400,8 @@ el('retry-button').addEventListener('click',()=>{
 });
 el('reset-button').addEventListener('click',()=>{
   if(!confirm('レベルやなかまを さいしょからに もどしますか？'))return;
-  stopTimer();state={...initial,recruited:[]};current=words[0];input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
+  // バッジと連続プレイ日数は、冒険をやり直しても残す
+  stopTimer();state=newState({badges:state.badges,dailyStreak:state.dailyStreak,lastPlayDate:state.lastPlayDate});current=words[0];wordHadMiss=false;input.value='';timedOut=false;save();render();toast('ぼうけんを さいしょから はじめよう！');input.focus();
 });
 const helpKey='kotoba-quest-help-seen';
 function openHelp(){el('help-dialog').hidden=false;el('help-close').focus();}
@@ -354,7 +415,7 @@ el('help-close').addEventListener('click',closeHelp);
 el('help-start').addEventListener('click',closeHelp);
 el('help-dialog').addEventListener('click',event=>{if(event.target===el('help-dialog'))closeHelp();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!el('help-dialog').hidden)closeHelp();});
-updateSoundButton();render();startTimer();
+updateSoundButton();render();startTimer();renderBadgeCollection();checkBadges(); // 既存プレイヤーの条件達成済みバッジも付与
 let helpSeen=false;
 try{helpSeen=localStorage.getItem(helpKey)==='1';}catch{}
 if(helpSeen)input.focus();else openHelp();
